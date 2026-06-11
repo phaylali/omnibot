@@ -7,6 +7,9 @@ node_modules/
 # TypeScript build output
 dist/
 
+# opencode project config (local to each developer)
+.opencode/
+
 # OS files
 .DS_Store
 Thumbs.db
