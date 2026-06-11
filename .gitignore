@@ -1,0 +1,12 @@
+# Environment variables (contains secrets)
+.env
+
+# Node/Bun dependencies
+node_modules/
+
+# TypeScript build output
+dist/
+
+# OS files
+.DS_Store
+Thumbs.db

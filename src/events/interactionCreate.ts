@@ -1,0 +1,171 @@
+/**
+ * =============================================================================
+ * INTERACTION CREATE EVENT HANDLER
+ * Central router for all user interactions with the bot.
+ *
+ * Handles three interaction types:
+ *   • Slash commands     → dispatched to the matching command's execute()
+ *   • Buttons            → routed by customId (RPS accept/cancel, etc.)
+ *   • String select menus → routed by customId (RPS choice, etc.)
+ *
+ * This file is intentionally thin — business logic lives in commands/ and games/.
+ * =============================================================================
+ */
+
+import { Events, Interaction } from "discord.js";
+import type { Client } from "discord.js";
+import { rpsGame } from "../games/rps.ts";
+import { logger } from "../lib/logger.ts";
+import { BOT_NAME } from "../config.ts";
+import { capitalize } from "../utils/helpers.ts";
+
+/**
+ * Registers the interactionCreate listener on the client.
+ * Call once after creating the client, before client.login().
+ */
+export function registerInteractionHandler(client: Client): void {
+  client.on(Events.InteractionCreate, async (interaction: Interaction) => {
+    try {
+      if (interaction.isChatInputCommand()) {
+        await handleSlashCommand(interaction);
+        return;
+      }
+
+      if (interaction.isButton()) {
+        await handleButton(interaction);
+        return;
+      }
+
+      if (interaction.isStringSelectMenu()) {
+        await handleSelectMenu(interaction);
+        return;
+      }
+    } catch (error) {
+      logger.error(`Interaction error: ${error}`);
+
+      if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
+        await interaction
+          .reply({ content: `${BOT_NAME} encountered an error.`, ephemeral: true })
+          .catch(() => {});
+      }
+    }
+  });
+
+  logger.debug("Interaction handler registered");
+}
+
+// ───── Slash Command Router ─────
+
+async function handleSlashCommand(
+  interaction: import("discord.js").ChatInputCommandInteraction,
+) {
+  const command = interaction.client.commands.get(interaction.commandName);
+
+  if (!command) {
+    logger.warn(`Unknown command: /${interaction.commandName}`);
+    await interaction.reply({
+      content: `Unknown command. Try \`/help\` to see available commands.`,
+      ephemeral: true,
+    });
+    return;
+  }
+
+  logger.info(
+    `/${command.data.name} by ${interaction.user.tag} (${interaction.user.id})`,
+  );
+
+  await command.execute(interaction);
+}
+
+// ───── Button Router ─────
+
+async function handleButton(interaction: import("discord.js").ButtonInteraction) {
+  const { customId, channelId } = interaction;
+
+  // ── RPS: Accept Challenge ──
+  if (customId === "rps_accept") {
+    const game = rpsGame.getGame(channelId);
+
+    if (!game) {
+      await interaction.reply({ content: "No active challenge here!", ephemeral: true });
+      return;
+    }
+    if (game.challenger.id === interaction.user.id) {
+      await interaction.reply({ content: "You can't accept your own challenge!", ephemeral: true });
+      return;
+    }
+
+    // Show an ephemeral select menu so only the accepting player sees their choices
+    const { StringSelectMenuBuilder, ActionRowBuilder } = await import("discord.js");
+    const select = new StringSelectMenuBuilder()
+      .setCustomId("rps_choose")
+      .setPlaceholder("Pick your object...")
+      .addOptions(rpsGame.getShuffledOptions());
+
+    const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
+
+    await interaction.reply({
+      content: `${interaction.user.globalName || interaction.user.username}, choose your weapon:`,
+      components: [row],
+      ephemeral: true,
+    });
+    return;
+  }
+
+  // ── RPS: Cancel Challenge ──
+  if (customId === "rps_cancel") {
+    const game = rpsGame.getGame(channelId);
+
+    if (!game) {
+      await interaction.reply({ content: "No active challenge here!", ephemeral: true });
+      return;
+    }
+    if (game.challenger.id !== interaction.user.id) {
+      await interaction.reply({ content: "Only the challenger can cancel!", ephemeral: true });
+      return;
+    }
+
+    rpsGame.endGame(channelId);
+    await interaction.update({ content: "Challenge cancelled.", components: [] });
+    return;
+  }
+
+  logger.warn(`Unhandled button: ${customId}`);
+  await interaction.reply({ content: "Unrecognized button.", ephemeral: true });
+}
+
+// ───── Select Menu Router ─────
+
+async function handleSelectMenu(
+  interaction: import("discord.js").StringSelectMenuInteraction,
+) {
+  if (interaction.customId !== "rps_choose") return;
+
+  const game = rpsGame.getGame(interaction.channelId);
+  if (!game) {
+    await interaction.reply({ content: "This challenge is no longer active.", ephemeral: true });
+    return;
+  }
+
+  const chosenObject = interaction.values[0];
+
+  // Register opponent's choice and calculate result
+  game.opponent = { id: interaction.user.id, objectName: chosenObject };
+  const result = rpsGame.calculateResult(game.challenger, game.opponent);
+  rpsGame.endGame(interaction.channelId);
+
+  // ── Update the original challenge message with the result ──
+  // The stored sourceInteraction allows us to edit the original public
+  // challenge post (which the select menu cannot reach directly).
+  await game.sourceInteraction.editReply({
+    content: `🎮 **Game Over!**\n${result}`,
+    components: [],
+  });
+
+  // ── Also acknowledge the ephemeral select menu ──
+  // Tells the accepting player their choice was registered.
+  await interaction.update({
+    content: `You picked **${capitalize(chosenObject)}**. Check the challenge message for the result!`,
+    components: [],
+  });
+}
