@@ -89,7 +89,7 @@ src/
 
 ## License
 
-MIT
+[The Unlicense](LICENSE) — public domain. Do whatever you want with it.
 
 ---
 
