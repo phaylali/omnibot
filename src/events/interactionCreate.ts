@@ -18,6 +18,7 @@ import { rpsGame } from "../games/rps.ts";
 import { logger } from "../lib/logger.ts";
 import { BOT_NAME } from "../config.ts";
 import { capitalize } from "../utils/helpers.ts";
+import { recordFlip, getTopN, getLeaderboard } from "../lib/flipStats.ts";
 
 /**
  * Registers the interactionCreate listener on the client.
@@ -118,11 +119,23 @@ async function handleButton(interaction: import("discord.js").ButtonInteraction)
     const outcome = Math.random() < 0.5 ? "heads" : "tails";
     const won = userGuess === outcome;
 
+    // Record the result and fetch top 3
+    await recordFlip(interaction.user.id, interaction.user.globalName ?? interaction.user.username, won);
+    const top3 = await getTopN(3);
+
     const filename = outcome === "heads" ? "front-coin.png" : "back-coin.png";
     const { AttachmentBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle }
       = await import("discord.js");
 
     const attachment = new AttachmentBuilder(`images/${filename}`);
+
+    // Build top-3 leaderboard text
+    const leaderboardText = top3.length > 0
+      ? "\n" + top3.map((u, i) =>
+          `**#${i + 1}** ${u.username} — ${u.wins}W ${u.losses}L (${(u.winRate * 100).toFixed(0)}%)`,
+        ).join("\n")
+      : "";
+
     const embed = new EmbedBuilder()
       .setColor(won ? 0x57f287 : 0xed4245)
       .setTitle("🪙 Coin Flip")
@@ -131,10 +144,13 @@ async function handleButton(interaction: import("discord.js").ButtonInteraction)
         `You picked **${userGuess.toUpperCase()}** — **${won ? "✅ You won!" : "❌ You lost!"}**`,
       )
       .setImage(`attachment://${filename}`)
-      .setFooter({ text: interaction.user.globalName ?? interaction.user.username })
       .setTimestamp();
 
-    const playAgain = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    if (top3.length > 0) {
+      embed.addFields({ name: "🏆 Top Players", value: leaderboardText.trim() });
+    }
+
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
         .setCustomId("flip_heads")
         .setLabel("Heads")
@@ -145,9 +161,40 @@ async function handleButton(interaction: import("discord.js").ButtonInteraction)
         .setLabel("Tails")
         .setEmoji("🪙")
         .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId("flip_leaderboard")
+        .setLabel("Leaderboard")
+        .setStyle(ButtonStyle.Secondary)
+        .setEmoji("📊"),
     );
 
-    await interaction.update({ embeds: [embed], files: [attachment], components: [playAgain] });
+    await interaction.update({ embeds: [embed], files: [attachment], components: [row] });
+    return;
+  }
+
+  // ── FLIP: Show full leaderboard ──
+  if (customId === "flip_leaderboard") {
+    const board = await getLeaderboard();
+
+    if (board.length === 0) {
+      await interaction.reply({ content: "No flips recorded yet. Be the first!", ephemeral: true });
+      return;
+    }
+
+    const { EmbedBuilder } = await import("discord.js");
+
+    // Split into chunks of 15 to stay under Discord's 1024-char field limit
+    const lines = board.map((u, i) =>
+      `**#${i + 1}** ${u.username} — ${u.wins}W ${u.losses}L (${(u.winRate * 100).toFixed(0)}%) ─ ${u.total} flips`,
+    );
+
+    const embed = new EmbedBuilder()
+      .setColor(0xf5c542)
+      .setTitle("📊 Coin Flip — Full Leaderboard")
+      .setDescription(lines.join("\n"))
+      .setFooter({ text: `${board.length} player${board.length !== 1 ? "s" : ""} total` });
+
+    await interaction.reply({ embeds: [embed], ephemeral: true });
     return;
   }
 
