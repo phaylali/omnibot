@@ -12,7 +12,7 @@
  * =============================================================================
  */
 
-import { Events, Interaction } from "discord.js";
+import { Events, Interaction, MessageFlags } from "discord.js";
 import type { Client } from "discord.js";
 import { rpsGame } from "../games/rps.ts";
 import { logger } from "../lib/logger.ts";
@@ -46,7 +46,7 @@ export function registerInteractionHandler(client: Client): void {
 
       if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
         await interaction
-          .reply({ content: `${BOT_NAME} encountered an error.`, ephemeral: true })
+          .reply({ content: `${BOT_NAME} encountered an error.`, flags: MessageFlags.Ephemeral })
           .catch(() => {});
       }
     }
@@ -66,7 +66,7 @@ async function handleSlashCommand(
     logger.warn(`Unknown command: /${interaction.commandName}`);
     await interaction.reply({
       content: `Unknown command. Try \`/help\` to see available commands.`,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -88,11 +88,11 @@ async function handleButton(interaction: import("discord.js").ButtonInteraction)
     const game = rpsGame.getGame(channelId);
 
     if (!game) {
-      await interaction.reply({ content: "No active challenge here!", ephemeral: true });
+      await interaction.reply({ content: "No active challenge here!", flags: MessageFlags.Ephemeral });
       return;
     }
     if (game.challenger.id === interaction.user.id) {
-      await interaction.reply({ content: "You can't accept your own challenge!", ephemeral: true });
+      await interaction.reply({ content: "You can't accept your own challenge!", flags: MessageFlags.Ephemeral });
       return;
     }
 
@@ -108,7 +108,7 @@ async function handleButton(interaction: import("discord.js").ButtonInteraction)
     await interaction.reply({
       content: `${interaction.user.globalName || interaction.user.username}, choose your weapon:`,
       components: [row],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -177,7 +177,7 @@ async function handleButton(interaction: import("discord.js").ButtonInteraction)
     const board = await getLeaderboard();
 
     if (board.length === 0) {
-      await interaction.reply({ content: "No flips recorded yet. Be the first!", ephemeral: true });
+      await interaction.reply({ content: "No flips recorded yet. Be the first!", flags: MessageFlags.Ephemeral });
       return;
     }
 
@@ -194,7 +194,7 @@ async function handleButton(interaction: import("discord.js").ButtonInteraction)
       .setDescription(lines.join("\n"))
       .setFooter({ text: `${board.length} player${board.length !== 1 ? "s" : ""} total` });
 
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -203,11 +203,11 @@ async function handleButton(interaction: import("discord.js").ButtonInteraction)
     const game = rpsGame.getGame(channelId);
 
     if (!game) {
-      await interaction.reply({ content: "No active challenge here!", ephemeral: true });
+      await interaction.reply({ content: "No active challenge here!", flags: MessageFlags.Ephemeral });
       return;
     }
     if (game.challenger.id !== interaction.user.id) {
-      await interaction.reply({ content: "Only the challenger can cancel!", ephemeral: true });
+      await interaction.reply({ content: "Only the challenger can cancel!", flags: MessageFlags.Ephemeral });
       return;
     }
 
@@ -217,7 +217,7 @@ async function handleButton(interaction: import("discord.js").ButtonInteraction)
   }
 
   logger.warn(`Unhandled button: ${customId}`);
-  await interaction.reply({ content: "Unrecognized button.", ephemeral: true });
+  await interaction.reply({ content: "Unrecognized button.", flags: MessageFlags.Ephemeral });
 }
 
 // ───── Select Menu Router ─────
@@ -229,7 +229,7 @@ async function handleSelectMenu(
 
   const game = rpsGame.getGame(interaction.channelId);
   if (!game) {
-    await interaction.reply({ content: "This challenge is no longer active.", ephemeral: true });
+    await interaction.reply({ content: "This challenge is no longer active.", flags: MessageFlags.Ephemeral });
     return;
   }
 
