@@ -7,8 +7,10 @@ node_modules/
 # TypeScript build output
 dist/
 
-# Per-guild bot configuration (created at runtime)
-data/
+# Per-guild bot data (contains guild IDs — security concern)
+data/*
+!data/global/
+!data/global/**/*
 
 # OS files
 .DS_Store
