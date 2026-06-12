@@ -22,9 +22,10 @@
  */
 
 import { Client, GatewayIntentBits, Events } from "discord.js";
-import { DISCORD_TOKEN } from "./config.ts";
+import { DISCORD_TOKEN, BOT_NAME } from "./config.ts";
 import { loadCommands } from "./lib/commandLoader.ts";
 import { registerInteractionHandler } from "./events/interactionCreate.ts";
+import { getAllConfiguredGuilds } from "./lib/configStore.ts";
 import { logger } from "./lib/logger.ts";
 
 // ───── 1. Create the Client ─────
@@ -53,7 +54,7 @@ registerInteractionHandler(client);
 //
 // Fires once after a successful gateway connection.
 // This is where we know the bot is online and can set its status.
-client.once(Events.ClientReady, (readyClient) => {
+client.once(Events.ClientReady, async (readyClient) => {
   logger.info(`✅ Logged in as ${readyClient.user.tag}`);
   logger.info(`   Serving ${readyClient.guilds.cache.size} guild(s)`);
 
@@ -62,6 +63,32 @@ client.once(Events.ClientReady, (readyClient) => {
     activities: [{ name: "/help • omnibot" }],
     status: "online",
   });
+
+  // ── Send online notification to configured guilds ──
+  // Each guild can set a default channel via /config setchannel.
+  // When the bot starts, it posts a simple "I'm online" message there.
+  const configuredGuilds = await getAllConfiguredGuilds();
+
+  for (const { guildId, channelId } of configuredGuilds) {
+    const guild = readyClient.guilds.cache.get(guildId);
+    if (!guild) {
+      logger.warn(`Guild ${guildId} not found — skipping online message`);
+      continue;
+    }
+
+    const channel = guild.channels.cache.get(channelId);
+    if (!channel || !channel.isTextBased()) {
+      logger.warn(`Channel ${channelId} in guild ${guildId} not found or not text — skipping`);
+      continue;
+    }
+
+    try {
+      await channel.send(`🟢 **${BOT_NAME}** is now online!`);
+      logger.info(`Online notification sent to guild ${guildId} (#${channel.name})`);
+    } catch (err) {
+      logger.error(`Failed to send online message to guild ${guildId}: ${err}`);
+    }
+  }
 });
 
 // ───── 5. Login ─────

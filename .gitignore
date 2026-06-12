@@ -7,8 +7,8 @@ node_modules/
 # TypeScript build output
 dist/
 
-# opencode project config (local to each developer)
-.opencode/
+# Per-guild bot configuration (created at runtime)
+data/
 
 # OS files
 .DS_Store

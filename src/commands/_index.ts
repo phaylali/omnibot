@@ -17,6 +17,7 @@ import * as test from "./test.ts";
 import * as challenge from "./challenge.ts";
 import * as userinfo from "./userinfo.ts";
 import * as flip from "./flip.ts";
+import * as config from "./config.ts";
 
 /** Ordered list of all commands. The loader uses this to register them. */
-export const commandList: Command[] = [test, challenge, userinfo, flip];
+export const commandList: Command[] = [test, challenge, userinfo, flip, config];
