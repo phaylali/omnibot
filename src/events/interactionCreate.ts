@@ -112,6 +112,45 @@ async function handleButton(interaction: import("discord.js").ButtonInteraction)
     return;
   }
 
+  // ── FLIP: Guess heads or tails ──
+  if (customId === "flip_heads" || customId === "flip_tails") {
+    const userGuess = customId === "flip_heads" ? "heads" : "tails";
+    const outcome = Math.random() < 0.5 ? "heads" : "tails";
+    const won = userGuess === outcome;
+
+    const filename = outcome === "heads" ? "front-coin.png" : "back-coin.png";
+    const { AttachmentBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle }
+      = await import("discord.js");
+
+    const attachment = new AttachmentBuilder(`images/${filename}`);
+    const embed = new EmbedBuilder()
+      .setColor(won ? 0x57f287 : 0xed4245)
+      .setTitle("🪙 Coin Flip")
+      .setDescription(
+        `It landed on **${outcome.toUpperCase()}**!\n\n` +
+        `You picked **${userGuess.toUpperCase()}** — **${won ? "✅ You won!" : "❌ You lost!"}**`,
+      )
+      .setImage(`attachment://${filename}`)
+      .setFooter({ text: interaction.user.globalName ?? interaction.user.username })
+      .setTimestamp();
+
+    const playAgain = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId("flip_heads")
+        .setLabel("Heads")
+        .setEmoji("🪙")
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId("flip_tails")
+        .setLabel("Tails")
+        .setEmoji("🪙")
+        .setStyle(ButtonStyle.Secondary),
+    );
+
+    await interaction.update({ embeds: [embed], files: [attachment], components: [playAgain] });
+    return;
+  }
+
   // ── RPS: Cancel Challenge ──
   if (customId === "rps_cancel") {
     const game = rpsGame.getGame(channelId);
