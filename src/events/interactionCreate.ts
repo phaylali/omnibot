@@ -119,9 +119,12 @@ async function handleButton(interaction: import("discord.js").ButtonInteraction)
     const outcome = Math.random() < 0.5 ? "heads" : "tails";
     const won = userGuess === outcome;
 
-    // Record the result and fetch top 3
-    await recordFlip(interaction.user.id, interaction.user.globalName ?? interaction.user.username, won);
-    const top3 = await getTopN(3);
+    // Track stats per-guild (skip in DMs since there's no guild)
+    const guildId = interaction.guildId;
+    if (guildId) {
+      await recordFlip(guildId, interaction.user.id, interaction.user.globalName ?? interaction.user.username, won);
+    }
+    const top3 = guildId ? await getTopN(guildId, 3) : [];
 
     const filename = outcome === "heads" ? "front-coin.png" : "back-coin.png";
     const { AttachmentBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle }
@@ -174,7 +177,12 @@ async function handleButton(interaction: import("discord.js").ButtonInteraction)
 
   // ── FLIP: Show full leaderboard ──
   if (customId === "flip_leaderboard") {
-    const board = await getLeaderboard();
+    const guildId = interaction.guildId;
+    if (!guildId) {
+      await interaction.reply({ content: "Leaderboard is only available in servers.", flags: MessageFlags.Ephemeral });
+      return;
+    }
+    const board = await getLeaderboard(guildId);
 
     if (board.length === 0) {
       await interaction.reply({ content: "No flips recorded yet. Be the first!", flags: MessageFlags.Ephemeral });

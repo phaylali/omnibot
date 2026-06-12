@@ -1,109 +1,63 @@
 /**
  * =============================================================================
  * GUILD CONFIG STORE
- * Reads and writes per-guild configuration to a JSON file.
+ * Per-guild bot settings stored in data/<guildId>/config.json.
  *
- * This is a simple file-based store (no database dependency).
- * Data is saved to data/guildConfigs.json and cached in memory.
+ * Currently stores:
+ *   - defaultChannelId: channel where the bot posts online notifications
+ *
+ * Add new fields here as the bot gains more per-guild configuration options.
  * =============================================================================
  */
 
-import { logger } from "./logger.ts";
+import { guildRead, guildWrite, listGuilds } from "./store.ts";
 
-/** Shape of each guild's config */
-interface GuildConfig {
+/** Shape of each guild's config file */
+export interface GuildConfig {
   /** Channel ID where the bot posts online/status messages */
   defaultChannelId: string | null;
 }
 
-/** Path to the config file (relative to project root) */
-const CONFIG_PATH = "data/guildConfigs.json";
-
-/** In-memory cache of all guild configs */
-let cache: Record<string, GuildConfig> = {};
-let loaded = false;
-
-/**
- * Ensures the config file is read into memory.
- * Called lazily on first access.
- */
-async function ensureLoaded(): Promise<void> {
-  if (loaded) return;
-
-  try {
-    const file = Bun.file(CONFIG_PATH);
-    const exists = await file.exists();
-    if (exists) {
-      cache = await file.json();
-    } else {
-      cache = {};
-    }
-  } catch (err) {
-    logger.warn(`Could not load guild configs: ${err}`);
-    cache = {};
-  }
-
-  loaded = true;
-}
-
-/**
- * Writes the in-memory cache to disk.
- * Called after every mutation.
- */
-async function persist(): Promise<void> {
-  try {
-    await Bun.write(CONFIG_PATH, JSON.stringify(cache, null, 2));
-  } catch (err) {
-    logger.error(`Failed to save guild configs: ${err}`);
-  }
-}
+const CONFIG_FILE = "config.json";
+const DEFAULT_CONFIG: GuildConfig = { defaultChannelId: null };
 
 /**
  * Gets the config for a specific guild.
- * Returns default values if nothing is configured yet.
- *
- * @param guildId - The Discord guild (server) ID
- * @returns The guild's config object
+ * Returns defaults if nothing is configured.
  */
 export async function getGuildConfig(guildId: string): Promise<GuildConfig> {
-  await ensureLoaded();
-  return cache[guildId] ?? { defaultChannelId: null };
+  return guildRead(guildId, CONFIG_FILE, DEFAULT_CONFIG);
 }
 
 /**
- * Sets the default channel for a guild.
- * The bot will post online notifications to this channel.
- *
- * @param guildId - The Discord guild ID
- * @param channelId - The channel ID to set (or null to clear)
+ * Sets the default notification channel for a guild.
+ * Pass null to clear the setting.
  */
 export async function setDefaultChannel(
   guildId: string,
   channelId: string | null,
 ): Promise<void> {
-  await ensureLoaded();
-
-  if (!cache[guildId]) {
-    cache[guildId] = { defaultChannelId: null };
-  }
-
-  cache[guildId].defaultChannelId = channelId;
-  await persist();
+  const config = await getGuildConfig(guildId);
+  config.defaultChannelId = channelId;
+  await guildWrite(guildId, CONFIG_FILE, config);
 }
 
 /**
- * Returns all guild IDs that have a default channel configured.
- * Used by the ready event to send online notifications.
+ * Returns all guilds that have a default channel configured,
+ * along with their channel ID. Used by the ready event.
  */
 export async function getAllConfiguredGuilds(): Promise<
   { guildId: string; channelId: string }[]
 > {
-  await ensureLoaded();
+  const guildIds = await listGuilds();
+  const result: { guildId: string; channelId: string }[] = [];
 
-  return Object.entries(cache)
-    .filter(([, config]) => config.defaultChannelId !== null)
-    .map(([guildId, config]) => ({
-      guildId,
-      channelId: config.defaultChannelId!,
-    }));
+  for (const guildId of guildIds) {
+    const config = await getGuildConfig(guildId);
+    if (config.defaultChannelId) {
+      result.push({ guildId, channelId: config.defaultChannelId });
+    }
+  }
+
+  return result;
 }

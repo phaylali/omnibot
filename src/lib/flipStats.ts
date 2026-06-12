@@ -1,12 +1,13 @@
 /**
  * =============================================================================
  * FLIP STATS STORE
- * Tracks wins/losses per user for the /flip guessing game.
- * Persists to data/flipStats.json.
+ * Per-guild leaderboard data stored in data/<guildId>/flips.json.
+ *
+ * Each guild has its own leaderboard so scores don't mix across servers.
  * =============================================================================
  */
 
-import { logger } from "./logger.ts";
+import { guildRead, guildWrite } from "./store.ts";
 
 interface UserStats {
   username: string;
@@ -14,62 +15,42 @@ interface UserStats {
   losses: number;
 }
 
-const STATS_PATH = "data/flipStats.json";
+type StatsMap = Record<string, UserStats>;
 
-let cache: Record<string, UserStats> = {};
-let loaded = false;
-
-async function ensureLoaded(): Promise<void> {
-  if (loaded) return;
-  try {
-    const file = Bun.file(STATS_PATH);
-    cache = (await file.exists()) ? await file.json() : {};
-  } catch {
-    cache = {};
-  }
-  loaded = true;
-}
-
-async function persist(): Promise<void> {
-  try {
-    await Bun.write(STATS_PATH, JSON.stringify(cache, null, 2));
-  } catch (err) {
-    logger.error(`Failed to save flip stats: ${err}`);
-  }
-}
+const STATS_FILE = "flips.json";
+const EMPTY: StatsMap = {};
 
 /**
- * Record one flip result for a user.
- * Creates the entry if it doesn't exist yet.
+ * Record one flip result for a user in a specific guild.
  */
 export async function recordFlip(
+  guildId: string,
   userId: string,
   username: string,
   won: boolean,
 ): Promise<void> {
-  await ensureLoaded();
+  const stats = await guildRead<StatsMap>(guildId, STATS_FILE, EMPTY);
 
-  if (!cache[userId]) {
-    cache[userId] = { username, wins: 0, losses: 0 };
+  if (!stats[userId]) {
+    stats[userId] = { username, wins: 0, losses: 0 };
   }
 
-  cache[userId].username = username; // keep display name current
-  if (won) cache[userId].wins++;
-  else cache[userId].losses++;
+  stats[userId].username = username;
+  if (won) stats[userId].wins++;
+  else stats[userId].losses++;
 
-  await persist();
+  await guildWrite(guildId, STATS_FILE, stats);
 }
 
 /**
- * Returns all users sorted by win rate descending.
- * Only includes users with at least one flip.
+ * Returns the leaderboard for a guild, sorted by win rate descending.
  */
-export async function getLeaderboard(): Promise<
-  (UserStats & { userId: string; total: number; winRate: number })[]
-> {
-  await ensureLoaded();
+export async function getLeaderboard(
+  guildId: string,
+): Promise<(UserStats & { userId: string; total: number; winRate: number })[]> {
+  const stats = await guildRead<StatsMap>(guildId, STATS_FILE, EMPTY);
 
-  return Object.entries(cache)
+  return Object.entries(stats)
     .map(([userId, s]) => ({
       userId,
       ...s,
@@ -80,11 +61,12 @@ export async function getLeaderboard(): Promise<
 }
 
 /**
- * Returns the top N entries from the leaderboard.
+ * Returns the top N entries from a guild's leaderboard.
  */
 export async function getTopN(
+  guildId: string,
   n: number,
 ): Promise<ReturnType<typeof getLeaderboard> extends Promise<infer T> ? T : never> {
-  const board = await getLeaderboard();
+  const board = await getLeaderboard(guildId);
   return board.slice(0, n) as any;
 }
