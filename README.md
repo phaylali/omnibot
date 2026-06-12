@@ -7,8 +7,12 @@ Originally made for the **Omniversify** server and Moroccan communities, but any
 ## Features
 
 - **Modular command system** — each command is a self-contained file in `src/commands/`
-- **Slash commands** — `/test`, `/challenge` (Rock Paper Scissors), `/userinfo`
+- **Slash commands** — `/test`, `/challenge` (Rock Paper Scissors), `/userinfo`, `/flip`, `/help`, `/config`
+- **Coin flip** — `/flip` with live buttons, per-guild leaderboard, top-3 embed, 📊 full leaderboard
+- **Server config** — `/config notify setchannel`, `/config rss add|remove|list|interval`
+- **RSS monitoring** — watches RSS/Atom feeds and posts new items as embeds to a configured channel
 - **Interactive components** — buttons, select menus
+- **Per-guild data** — all configs stored in `data/<guildId>/`, global data in `data/global/`
 - **TypeScript** — full type safety across the entire codebase
 - **Latest discord.js** — v14 with `SlashCommandBuilder`, `Collection` routing, proper intents
 
@@ -39,8 +43,16 @@ bun run dev
 | Command | Description |
 |---------|-------------|
 | `/test` | Sanity check — replies with "hello world" + random emoji |
-| `/challenge [object]` | Start a Rock-Paper-Scissors game. Buttons + select menus |
+| `/help` | Show all available commands |
 | `/userinfo [user]` | Show Discord account info (join date, account age, etc.) |
+| `/challenge [object]` | Start a Rock-Paper-Scissors game with buttons + select menus |
+| `/flip [heads|tails]` | Coin flip guessing game with per-guild leaderboard |
+| `/config notify setchannel <#channel>` | Set the notification channel for bot status |
+| `/config notify channel` | Show the currently configured notification channel |
+| `/config rss add <url> [channel]` | Add an RSS/Atom feed to monitor for new posts |
+| `/config rss remove <url>` | Remove a monitored RSS feed |
+| `/config rss list` | List all monitored RSS feeds with check times |
+| `/config rss interval <minutes>` | Set how often RSS feeds are checked (default 60) |
 
 ## Scripts
 
@@ -49,6 +61,23 @@ bun run dev
 | `bun run start` | Start the bot |
 | `bun run dev` | Start with hot reload (`--watch`) |
 | `bun run deploy` | Register/update slash commands |
+
+## Data Storage
+
+All per-guild data is stored as JSON files in `data/<guildId>/`. Each guild gets its own directory:
+
+```
+data/
+├── <guildId>/
+│   └── config.json    — Notification channel, RSS feeds, interval
+├── <guildId>/
+│   ├── config.json
+│   └── flipStats.json — Win/loss records for /flip
+└── global/
+    └── ...             — Cross-guild shared data (tracked in git)
+```
+
+Per-guild directories are gitignored. Global data is tracked.
 
 ## Adding a New Command
 
@@ -70,7 +99,10 @@ src/
 │   ├── _index.ts             # Command registry (add new commands here)
 │   ├── test.ts               # /test command
 │   ├── challenge.ts          # /challenge command
-│   └── userinfo.ts           # /userinfo command
+│   ├── userinfo.ts           # /userinfo command
+│   ├── flip.ts               # /flip command
+│   ├── help.ts               # /help command
+│   └── config.ts             # /config command (notify + rss groups)
 │
 ├── events/
 │   └── interactionCreate.ts  # Router for all interactions
@@ -78,13 +110,27 @@ src/
 ├── games/
 │   └── rps.ts                # RPS game engine + state management
 │
+├── services/
+│   └── rssMonitor.ts         # Background RSS polling service
+│
 ├── lib/
 │   ├── commandLoader.ts      # Loads commands into the client
-│   └── logger.ts             # Structured logging
+│   ├── logger.ts             # Structured logging
+│   ├── store.ts              # Generic guild/global JSON read/write
+│   ├── configStore.ts        # Per-guild config (channel, RSS feeds)
+│   ├── flipStats.ts          # Per-guild flip leaderboard
+│   └── rssParser.ts          # RSS/Atom XML parser
 │
 └── utils/
     ├── helpers.ts            # Emoji, capitalize, random, date formatting
     └── discordApi.ts         # Discord REST API wrapper (for deploy)
+
+images/
+├── front-coin.png            # Coin flip heads image
+└── back-coin.png             # Coin flip tails image
+
+data/                         # Per-guild directories (gitignored)
+└── global/                   # Cross-guild data (tracked)
 ```
 
 ## License

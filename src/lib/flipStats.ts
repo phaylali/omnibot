@@ -51,12 +51,15 @@ export async function getLeaderboard(
   const stats = await guildRead<StatsMap>(guildId, STATS_FILE, EMPTY);
 
   return Object.entries(stats)
-    .map(([userId, s]) => ({
-      userId,
-      ...s,
-      total: s.wins + s.losses,
-      winRate: s.total > 0 ? s.wins / s.total : 0,
-    }))
+    .map(([userId, s]) => {
+      const total = s.wins + s.losses;
+      return {
+        userId,
+        ...s,
+        total,
+        winRate: total > 0 ? (s.wins / total) * 100 : 0,
+      };
+    })
     .sort((a, b) => b.winRate - a.winRate || b.total - a.total);
 }
 

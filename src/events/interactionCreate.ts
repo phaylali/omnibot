@@ -12,6 +12,7 @@
  * =============================================================================
  */
 
+import { randomInt } from "node:crypto";
 import { Events, Interaction, MessageFlags } from "discord.js";
 import type { Client } from "discord.js";
 import { rpsGame } from "../games/rps.ts";
@@ -116,7 +117,7 @@ async function handleButton(interaction: import("discord.js").ButtonInteraction)
   // ── FLIP: Guess heads or tails ──
   if (customId === "flip_heads" || customId === "flip_tails") {
     const userGuess = customId === "flip_heads" ? "heads" : "tails";
-    const outcome = Math.random() < 0.5 ? "heads" : "tails";
+    const outcome = randomInt(2) === 0 ? "heads" : "tails";
     const won = userGuess === outcome;
 
     // Track stats per-guild (skip in DMs since there's no guild)
@@ -135,7 +136,7 @@ async function handleButton(interaction: import("discord.js").ButtonInteraction)
     // Build top-3 leaderboard text
     const leaderboardText = top3.length > 0
       ? "\n" + top3.map((u, i) =>
-          `**#${i + 1}** ${u.username} — ${u.wins}W ${u.losses}L (${(u.winRate * 100).toFixed(0)}%)`,
+          `**#${i + 1}** ${u.username} — ${u.wins}W ${u.losses}L (${u.winRate.toFixed(0)}%)`,
         ).join("\n")
       : "";
 
@@ -193,7 +194,7 @@ async function handleButton(interaction: import("discord.js").ButtonInteraction)
 
     // Split into chunks of 15 to stay under Discord's 1024-char field limit
     const lines = board.map((u, i) =>
-      `**#${i + 1}** ${u.username} — ${u.wins}W ${u.losses}L (${(u.winRate * 100).toFixed(0)}%) ─ ${u.total} flips`,
+      `**#${i + 1}** ${u.username} — ${u.wins}W ${u.losses}L (${u.winRate.toFixed(0)}%) ─ ${u.total} flips`,
     );
 
     const embed = new EmbedBuilder()

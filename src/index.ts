@@ -26,6 +26,7 @@ import { DISCORD_TOKEN, BOT_NAME } from "./config.ts";
 import { loadCommands } from "./lib/commandLoader.ts";
 import { registerInteractionHandler } from "./events/interactionCreate.ts";
 import { getAllConfiguredGuilds } from "./lib/configStore.ts";
+import { RssMonitor } from "./services/rssMonitor.ts";
 import { logger } from "./lib/logger.ts";
 
 // ───── 1. Create the Client ─────
@@ -63,6 +64,11 @@ client.once(Events.ClientReady, async (readyClient) => {
     activities: [{ name: "/help • omnibot" }],
     status: "online",
   });
+
+  // ── Start RSS monitor ──
+  const rssMonitor = new RssMonitor(readyClient);
+  rssMonitor.start();
+  logger.info("📡 RSS monitor started");
 
   // ── Send online notification to configured guilds ──
   // Each guild can set a default channel via /config setchannel.
