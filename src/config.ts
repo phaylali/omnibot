@@ -28,6 +28,10 @@ export const OWNER_IDS = (process.env.OWNER_IDS ?? "").split(",").filter(Boolean
 /** The default prefix for any text-based commands (future use) */
 export const PREFIX = process.env.PREFIX ?? "!";
 
+/** Tifinagh Dictionary API base URL */
+export const TIFINAGH_API_URL =
+  process.env.TIFINAGH_API_URL ?? "https://omniversify-tifinagh-dictionary-api.omniversify.com";
+
 /** Default embed color used across the bot */
 export const EMBED_COLOR = 0x5865f2; // Discord blurple
 

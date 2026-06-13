@@ -4,15 +4,23 @@ import {
   PermissionFlagsBits,
   ChannelType,
   EmbedBuilder,
+  MessageFlags,
 } from "discord.js";
 import {
   setDefaultChannel,
+  setWelcomeChannel,
   getGuildConfig,
   addRssFeed,
   removeRssFeed,
   setRssInterval,
 } from "../lib/configStore.ts";
 import { logger } from "../lib/logger.ts";
+
+function ordinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]!);
+}
 
 export const data = new SlashCommandBuilder()
   .setName("config")
@@ -39,6 +47,28 @@ export const data = new SlashCommandBuilder()
         sub
           .setName("channel")
           .setDescription("Show the currently configured notification channel"),
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName("setwelcome")
+          .setDescription("Set the channel for welcome/leave messages")
+          .addChannelOption((option) =>
+            option
+              .setName("channel")
+              .setDescription("The text channel to use")
+              .setRequired(true)
+              .addChannelTypes(ChannelType.GuildText),
+          ),
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName("welcome")
+          .setDescription("Show the currently configured welcome channel"),
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName("testwelcome")
+          .setDescription("Test the welcome/leave system by sending a sample message"),
       ),
   )
   .addSubcommandGroup((group) =>
@@ -119,6 +149,78 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         await interaction.reply({
           content: "❌ No notification channel is configured yet. Use `/config notify setchannel #channel` to set one.",
         });
+      }
+      return;
+    }
+
+    if (subcommand === "setwelcome") {
+      const channel = interaction.options.getChannel("channel", true);
+      await setWelcomeChannel(guildId, channel.id);
+      logger.info(`Welcome channel set to #${channel.name} (${channel.id}) in guild ${guildId}`);
+      await interaction.reply({
+        content: `✅ Welcome/leave messages will now be posted to <#${channel.id}>.`,
+      });
+      return;
+    }
+
+    if (subcommand === "welcome") {
+      const config = await getGuildConfig(guildId);
+      const cid = config.welcomeChannelId || config.defaultChannelId;
+      if (cid) {
+        await interaction.reply({
+          content: `👋 Welcome messages are set to <#${cid}>${config.welcomeChannelId ? "" : " *(falling back to notification channel)*"}.`,
+        });
+      } else {
+        await interaction.reply({
+          content: "❌ No welcome channel is configured yet. Use `/config notify setwelcome #channel` to set one.",
+        });
+      }
+      return;
+    }
+
+    if (subcommand === "testwelcome") {
+      await interaction.deferReply({ ephemeral: true });
+      const config = await getGuildConfig(guildId);
+      const cid = config.welcomeChannelId || config.defaultChannelId;
+      if (!cid) {
+        await interaction.editReply({ content: "❌ No welcome channel configured. Set one first with `/config notify setwelcome #channel`." });
+        return;
+      }
+
+      const channel = interaction.guild?.channels.cache.get(cid);
+      if (!channel?.isTextBased()) {
+        await interaction.editReply({ content: `❌ Channel <#${cid}> is not available or not a text channel.` });
+        return;
+      }
+
+      try {
+        const testEmbed = new EmbedBuilder()
+          .setColor(0x2ecc71)
+          .setTitle("🪐 Test — New arrival")
+          .setDescription(
+            `Welcome ${interaction.user}, ⴰⵣⵓⵍ, مرحبا!\nYou are the **${ordinal(interaction.guild!.memberCount)}** piece of the omniversal puzzle.`,
+          )
+          .setThumbnail(interaction.user.displayAvatarURL())
+          .setTimestamp();
+
+        await channel.send({ embeds: [testEmbed] });
+
+        const leaveEmbed = new EmbedBuilder()
+          .setColor(0xe74c3c)
+          .setDescription(`😔 test mode — one more lost soul...\n*— ${interaction.user.tag}*`)
+          .setThumbnail(interaction.user.displayAvatarURL())
+          .setTimestamp();
+
+        await channel.send({ embeds: [leaveEmbed] });
+
+        await interaction.editReply({
+          content: `✅ Test messages sent to <#${cid}>. If you don't see them, the bot may be missing the **Server Members Intent** in the Discord Developer Portal.`,
+        });
+      } catch (err) {
+        logger.error(`Test welcome failed: ${err}`);
+        await interaction.editReply({
+          content: `❌ Failed to send test messages: ${err}`,
+        }).catch(() => {});
       }
       return;
     }

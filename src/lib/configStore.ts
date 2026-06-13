@@ -9,6 +9,7 @@ export interface RssFeedEntry {
 
 export interface GuildConfig {
   defaultChannelId: string | null;
+  welcomeChannelId: string | null;
   rssFeeds: RssFeedEntry[];
   rssIntervalMinutes: number;
 }
@@ -16,6 +17,7 @@ export interface GuildConfig {
 const CONFIG_FILE = "config.json";
 const DEFAULT_CONFIG: GuildConfig = {
   defaultChannelId: null,
+  welcomeChannelId: null,
   rssFeeds: [],
   rssIntervalMinutes: 60,
 };
@@ -43,6 +45,32 @@ export async function getAllConfiguredGuilds(): Promise<
     const config = await getGuildConfig(guildId);
     if (config.defaultChannelId) {
       result.push({ guildId, channelId: config.defaultChannelId });
+    }
+  }
+
+  return result;
+}
+
+export async function setWelcomeChannel(
+  guildId: string,
+  channelId: string | null,
+): Promise<void> {
+  const config = await getGuildConfig(guildId);
+  config.welcomeChannelId = channelId;
+  await guildWrite(guildId, CONFIG_FILE, config);
+}
+
+export async function getAllConfiguredWelcomeGuilds(): Promise<
+  { guildId: string; channelId: string }[]
+> {
+  const guildIds = await listGuilds();
+  const result: { guildId: string; channelId: string }[] = [];
+
+  for (const guildId of guildIds) {
+    const config = await getGuildConfig(guildId);
+    const channelId = config.welcomeChannelId || config.defaultChannelId;
+    if (channelId) {
+      result.push({ guildId, channelId });
     }
   }
 

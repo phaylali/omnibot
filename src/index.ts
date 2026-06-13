@@ -27,6 +27,7 @@ import { loadCommands } from "./lib/commandLoader.ts";
 import { registerInteractionHandler } from "./events/interactionCreate.ts";
 import { getAllConfiguredGuilds } from "./lib/configStore.ts";
 import { RssMonitor } from "./services/rssMonitor.ts";
+import { registerGuildMemberEvents } from "./events/guildMemberEvents.ts";
 import { logger } from "./lib/logger.ts";
 
 // ───── 1. Create the Client ─────
@@ -36,6 +37,7 @@ import { logger } from "./lib/logger.ts";
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
   ],
 });
 
@@ -50,6 +52,7 @@ loadCommands(client);
 // The interactionCreate handler routes slash commands, buttons, and
 // select menus to the right functions.
 registerInteractionHandler(client);
+registerGuildMemberEvents(client);
 
 // ───── 4. Ready Event ─────
 //
