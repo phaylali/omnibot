@@ -228,3 +228,25 @@ Bun loads `.env` automatically — no `dotenv` dependency needed.
 - `refactor:` — code change that neither fixes nor adds
 - `perf:` — performance improvement
 - `chore:` — maintenance, deps, config
+
+## Possible Coming Features
+
+Ideas ranked by engagement impact vs implementation effort.
+
+### 🧩 Trivial (~20 min each)
+- **Social actions** — `/hug @user`, `/pet @user`, `/bonk @user`, `/slap @user`. Embed with GIF from nekos.best or waifu.pics API. No storage needed.
+- **Polls** — `/poll "Question?" "opt1" "opt2" ...`. Button-based voting. Same pattern as RPS select menu.
+- **8ball** — `/8ball <question>`. Random answer from a curated string array.
+
+### 📈 Moderate (~1 hr each)
+- **Quote Saver** — `/quote add <message-link>` saves to `data/<guild>/quotes.json`. `/quote random` picks one. Same read/write pattern as flipStats.
+- **Birthday Role** — `/birthday set <MM-DD>`. Daily check in `index.ts` ready event auto-assigns a "🎂" role on the user's date.
+- **Reaction Roles** — `/reactionrole create <msg-id> <emoji> <role>`. Uses `messageReactionAdd` event + per-guild JSON mapping.
+
+### 🎯 Thematic (Omniversify/Tifinagh)
+- **Tifinagh Trivia** — `/quiz` with multiple-choice questions about Amazigh language/culture. Scores tracked per-user. Reuses the dictionary API for content.
+- **Word of the Day** — Posts a Tifinagh word + translation to a configured channel daily. Same cron pattern as RSS monitor.
+
+### 🛠 Infrastructure
+- **Rate limiting / caching** for the dictionary API (production hardening)
+- **Auto-detect script** in `/tifinagh` — infer input script instead of requiring `from` parameter
