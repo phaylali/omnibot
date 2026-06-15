@@ -27,6 +27,7 @@ import { loadCommands } from "./lib/commandLoader.ts";
 import { registerInteractionHandler } from "./events/interactionCreate.ts";
 import { getAllConfiguredGuilds } from "./lib/configStore.ts";
 import { RssMonitor } from "./services/rssMonitor.ts";
+import { WordMonitor } from "./services/wordMonitor.ts";
 import { registerGuildMemberEvents } from "./events/guildMemberEvents.ts";
 import { logger } from "./lib/logger.ts";
 
@@ -72,6 +73,10 @@ client.once(Events.ClientReady, async (readyClient) => {
   const rssMonitor = new RssMonitor(readyClient);
   rssMonitor.start();
   logger.info("📡 RSS monitor started");
+
+  // ── Start Word of the Day monitor ──
+  const wordMonitor = new WordMonitor(readyClient);
+  wordMonitor.start();
 
   // ── Send online notification to configured guilds ──
   // Each guild can set a default channel via /config setchannel.

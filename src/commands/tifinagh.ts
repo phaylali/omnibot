@@ -55,6 +55,11 @@ export const data = new SlashCommandBuilder()
           .setRequired(false)
           .addChoices(...LANGS),
       ),
+  )
+  .addSubcommand((sub) =>
+    sub
+      .setName("random")
+      .setDescription("Get a random word from the Amazigh dictionary"),
   );
 
 async function apiPost(
@@ -79,10 +84,47 @@ async function apiPost(
 
 export async function execute(interaction: ChatInputCommandInteraction) {
   const sub = interaction.options.getSubcommand();
-  const text = interaction.options.getString("text", true);
-  const from = interaction.options.getString("from");
 
   await interaction.deferReply();
+
+  if (sub === "random") {
+    try {
+      const res = await fetch(`${TIFINAGH_API_URL}/api/random`, {
+        signal: AbortSignal.timeout(10_000),
+      });
+
+      if (!res.ok) {
+        await interaction.editReply({ content: "❌ Couldn't fetch a random word right now." });
+        return;
+      }
+
+      const entry = (await res.json()) as {
+        word: string;
+        pronunciation: string;
+        arabic: string;
+        english: string;
+      };
+
+      const embed = new EmbedBuilder()
+        .setColor(0x2d7f2d)
+        .setTitle("ⵣ Random Word")
+        .setDescription(`**${entry.word}**`)
+        .addFields(
+          { name: "Pronunciation", value: entry.pronunciation || "—", inline: true },
+          { name: "Arabic", value: entry.arabic || "—", inline: true },
+          { name: "English", value: entry.english || "—", inline: true },
+        );
+
+      await interaction.editReply({ embeds: [embed] });
+      return;
+    } catch {
+      await interaction.editReply({ content: "❌ Couldn't fetch a random word right now." });
+      return;
+    }
+  }
+
+  const text = interaction.options.getString("text", true);
+  const from = interaction.options.getString("from");
 
   if (sub === "retype") {
     const body: Record<string, unknown> = { text };

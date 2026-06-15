@@ -42,7 +42,6 @@ export function registerGuildMemberEvents(client: Client): void {
   client.on(Events.GuildMemberAdd, async (member) => {
     try {
       logger.debug(`GuildMemberAdd: ${member.user.tag} joined ${member.guild.id}`);
-      if (member.user.bot) return;
 
       const config = await getGuildConfig(member.guild.id);
       const channelId = config.welcomeChannelId || config.defaultChannelId;
@@ -77,10 +76,6 @@ export function registerGuildMemberEvents(client: Client): void {
   client.on(Events.GuildMemberRemove, async (member) => {
     try {
       logger.debug(`GuildMemberRemove: ${member.user.tag} left ${member.guild.id}`);
-      if (member.user.bot) {
-        logger.debug(`GuildMemberRemove: bot member skipped`);
-        return;
-      }
 
       const config = await getGuildConfig(member.guild.id);
       const channelId = config.welcomeChannelId || config.defaultChannelId;

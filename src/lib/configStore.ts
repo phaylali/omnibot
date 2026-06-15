@@ -12,6 +12,9 @@ export interface GuildConfig {
   welcomeChannelId: string | null;
   rssFeeds: RssFeedEntry[];
   rssIntervalMinutes: number;
+  wordChannelId: string | null;
+  wordIntervalHours: number;
+  lastWordTimestamp: number | null;
 }
 
 const CONFIG_FILE = "config.json";
@@ -20,6 +23,9 @@ const DEFAULT_CONFIG: GuildConfig = {
   welcomeChannelId: null,
   rssFeeds: [],
   rssIntervalMinutes: 60,
+  wordChannelId: null,
+  wordIntervalHours: 3,
+  lastWordTimestamp: null,
 };
 
 export async function getGuildConfig(guildId: string): Promise<GuildConfig> {
@@ -71,6 +77,49 @@ export async function getAllConfiguredWelcomeGuilds(): Promise<
     const channelId = config.welcomeChannelId || config.defaultChannelId;
     if (channelId) {
       result.push({ guildId, channelId });
+    }
+  }
+
+  return result;
+}
+
+export async function setWordChannel(
+  guildId: string,
+  channelId: string | null,
+): Promise<void> {
+  const config = await getGuildConfig(guildId);
+  config.wordChannelId = channelId;
+  if (channelId) config.lastWordTimestamp = null;
+  await guildWrite(guildId, CONFIG_FILE, config);
+}
+
+export async function setWordInterval(
+  guildId: string,
+  hours: number,
+): Promise<void> {
+  const config = await getGuildConfig(guildId);
+  config.wordIntervalHours = hours;
+  await guildWrite(guildId, CONFIG_FILE, config);
+}
+
+export async function updateLastWordTimestamp(
+  guildId: string,
+): Promise<void> {
+  const config = await getGuildConfig(guildId);
+  config.lastWordTimestamp = Date.now();
+  await guildWrite(guildId, CONFIG_FILE, config);
+}
+
+export async function getAllConfiguredWordGuilds(): Promise<
+  { guildId: string; channelId: string; intervalHours: number; lastTimestamp: number | null }[]
+> {
+  const guildIds = await listGuilds();
+  const result: { guildId: string; channelId: string; intervalHours: number; lastTimestamp: number | null }[] = [];
+
+  for (const guildId of guildIds) {
+    const config = await getGuildConfig(guildId);
+    if (config.wordChannelId) {
+      result.push({ guildId, channelId: config.wordChannelId, intervalHours: config.wordIntervalHours, lastTimestamp: config.lastWordTimestamp });
     }
   }
 

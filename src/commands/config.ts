@@ -13,7 +13,10 @@ import {
   addRssFeed,
   removeRssFeed,
   setRssInterval,
+  setWordChannel,
+  setWordInterval,
 } from "../lib/configStore.ts";
+import { WordMonitor } from "../services/wordMonitor.ts";
 import { logger } from "../lib/logger.ts";
 
 function ordinal(n: number): string {
@@ -69,6 +72,46 @@ export const data = new SlashCommandBuilder()
         sub
           .setName("testwelcome")
           .setDescription("Test the welcome/leave system by sending a sample message"),
+      ),
+  )
+  .addSubcommandGroup((group) =>
+    group
+      .setName("word")
+      .setDescription("Word of the Day settings")
+      .addSubcommand((sub) =>
+        sub
+          .setName("channel")
+          .setDescription("Set the channel for Word of the Day messages")
+          .addChannelOption((option) =>
+            option
+              .setName("channel")
+              .setDescription("The text channel to use")
+              .setRequired(true)
+              .addChannelTypes(ChannelType.GuildText),
+          ),
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName("interval")
+          .setDescription("Set how often a random word is posted (hours)")
+          .addIntegerOption((option) =>
+            option
+              .setName("hours")
+              .setDescription("Hours between posts (min 1, max 24)")
+              .setRequired(true)
+              .setMinValue(1)
+              .setMaxValue(24),
+          ),
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName("now")
+          .setDescription("Send a random Tifinagh word now"),
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName("status")
+          .setDescription("Show current Word of the Day settings"),
       ),
   )
   .addSubcommandGroup((group) =>
@@ -222,6 +265,54 @@ export async function execute(interaction: ChatInputCommandInteraction) {
           content: `❌ Failed to send test messages: ${err}`,
         }).catch(() => {});
       }
+      return;
+    }
+  }
+
+  if (group === "word") {
+    if (subcommand === "channel") {
+      const channel = interaction.options.getChannel("channel", true);
+      await setWordChannel(guildId, channel.id);
+      logger.info(`Word channel set to #${channel.name} (${channel.id}) in guild ${guildId}`);
+      await interaction.reply({
+        content: `✅ Word of the Day will now be posted to <#${channel.id}>.`,
+      });
+      return;
+    }
+
+    if (subcommand === "interval") {
+      const hours = interaction.options.getInteger("hours", true);
+      await setWordInterval(guildId, hours);
+      logger.info(`Word interval set to ${hours}h in guild ${guildId}`);
+      await interaction.reply({
+        content: `✅ Word of the Day will now be posted every **${hours}** hour(s).`,
+      });
+      return;
+    }
+
+    if (subcommand === "now") {
+      await interaction.deferReply({ ephemeral: true });
+      const wordMonitor = new WordMonitor(interaction.client);
+      const ok = await wordMonitor.sendNow(guildId);
+      if (ok) {
+        await interaction.editReply({ content: "✅ Random word sent to the configured channel." });
+      } else {
+        await interaction.editReply({ content: "❌ No Word of the Day channel configured. Use `/config word channel #channel` first." });
+      }
+      return;
+    }
+
+    if (subcommand === "status") {
+      const config = await getGuildConfig(guildId);
+      const embed = new EmbedBuilder()
+        .setColor(0x00ae86)
+        .setTitle("📖 Word of the Day");
+      if (config.wordChannelId) {
+        embed.setDescription(`Channel: <#${config.wordChannelId}>\nInterval: **${config.wordIntervalHours}** hour(s)`);
+      } else {
+        embed.setDescription("❌ Not configured. Use `/config word channel #channel` to set up.");
+      }
+      await interaction.reply({ embeds: [embed] });
       return;
     }
   }
