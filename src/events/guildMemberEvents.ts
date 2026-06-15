@@ -44,7 +44,7 @@ export function registerGuildMemberEvents(client: Client): void {
       logger.debug(`GuildMemberAdd: ${member.user.tag} joined ${member.guild.id}`);
 
       const config = await getGuildConfig(member.guild.id);
-      const channelId = config.welcomeChannelId || config.defaultChannelId;
+      const channelId = config.welcomeChannelId || config.onlineChannelId;
       if (!channelId) {
         logger.debug(`No welcome channel configured for guild ${member.guild.id}`);
         return;
@@ -78,7 +78,7 @@ export function registerGuildMemberEvents(client: Client): void {
       logger.debug(`GuildMemberRemove: ${member.user.tag} left ${member.guild.id}`);
 
       const config = await getGuildConfig(member.guild.id);
-      const channelId = config.welcomeChannelId || config.defaultChannelId;
+      const channelId = config.welcomeChannelId || config.onlineChannelId;
       logger.debug(`GuildMemberRemove: channelId resolved to ${channelId}`);
       if (!channelId) {
         logger.debug(`No welcome channel configured for guild ${member.guild.id}`);

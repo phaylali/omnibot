@@ -25,10 +25,11 @@ import { Client, GatewayIntentBits, Events } from "discord.js";
 import { DISCORD_TOKEN, BOT_NAME } from "./config.ts";
 import { loadCommands } from "./lib/commandLoader.ts";
 import { registerInteractionHandler } from "./events/interactionCreate.ts";
-import { getAllConfiguredGuilds } from "./lib/configStore.ts";
+import { getAllConfiguredOnlineGuilds } from "./lib/configStore.ts";
 import { RssMonitor } from "./services/rssMonitor.ts";
 import { WordMonitor } from "./services/wordMonitor.ts";
 import { registerGuildMemberEvents } from "./events/guildMemberEvents.ts";
+import { registerXpEvents } from "./events/messageCreate.ts";
 import { logger } from "./lib/logger.ts";
 
 // ───── 1. Create the Client ─────
@@ -39,6 +40,8 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
   ],
 });
 
@@ -54,6 +57,7 @@ loadCommands(client);
 // select menus to the right functions.
 registerInteractionHandler(client);
 registerGuildMemberEvents(client);
+registerXpEvents(client);
 
 // ───── 4. Ready Event ─────
 //
@@ -81,7 +85,7 @@ client.once(Events.ClientReady, async (readyClient) => {
   // ── Send online notification to configured guilds ──
   // Each guild can set a default channel via /config setchannel.
   // When the bot starts, it posts a simple "I'm online" message there.
-  const configuredGuilds = await getAllConfiguredGuilds();
+  const configuredGuilds = await getAllConfiguredOnlineGuilds();
 
   for (const { guildId, channelId } of configuredGuilds) {
     const guild = readyClient.guilds.cache.get(guildId);

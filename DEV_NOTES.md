@@ -234,7 +234,6 @@ Bun loads `.env` automatically — no `dotenv` dependency needed.
 Ideas ranked by engagement impact vs implementation effort.
 
 ### 🧩 Trivial (~20 min each)
-- **Social actions** — `/hug @user`, `/pet @user`, `/bonk @user`, `/slap @user`. Embed with GIF from nekos.best or waifu.pics API. No storage needed.
 - **Polls** — `/poll "Question?" "opt1" "opt2" ...`. Button-based voting. Same pattern as RPS select menu.
 - **8ball** — `/8ball <question>`. Random answer from a curated string array.
 

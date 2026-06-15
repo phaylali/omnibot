@@ -7,14 +7,16 @@ import {
   MessageFlags,
 } from "discord.js";
 import {
-  setDefaultChannel,
+  setOnlineChannel,
   setWelcomeChannel,
+  setWordChannel,
+  setWordInterval,
+  setFreegamesChannel,
+  setRankChannel,
   getGuildConfig,
   addRssFeed,
   removeRssFeed,
   setRssInterval,
-  setWordChannel,
-  setWordInterval,
 } from "../lib/configStore.ts";
 import { WordMonitor } from "../services/wordMonitor.ts";
 import { logger } from "../lib/logger.ts";
@@ -36,7 +38,7 @@ export const data = new SlashCommandBuilder()
       .setDescription("Notification channel settings")
       .addSubcommand((sub) =>
         sub
-          .setName("setchannel")
+          .setName("setonlinechannel")
           .setDescription("Set the channel for bot online/ready notifications")
           .addChannelOption((option) =>
             option
@@ -48,12 +50,12 @@ export const data = new SlashCommandBuilder()
       )
       .addSubcommand((sub) =>
         sub
-          .setName("channel")
-          .setDescription("Show the currently configured notification channel"),
+          .setName("getonlinechannel")
+          .setDescription("Show the currently configured online notification channel"),
       )
       .addSubcommand((sub) =>
         sub
-          .setName("setwelcome")
+          .setName("setwelcomechannel")
           .setDescription("Set the channel for welcome/leave messages")
           .addChannelOption((option) =>
             option
@@ -65,8 +67,59 @@ export const data = new SlashCommandBuilder()
       )
       .addSubcommand((sub) =>
         sub
-          .setName("welcome")
-          .setDescription("Show the currently configured welcome channel"),
+          .setName("getwelcomechannel")
+          .setDescription("Show the currently configured welcome/leave channel"),
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName("setwordchannel")
+          .setDescription("Set the channel for Word of the Day")
+          .addChannelOption((option) =>
+            option
+              .setName("channel")
+              .setDescription("The text channel to use")
+              .setRequired(true)
+              .addChannelTypes(ChannelType.GuildText),
+          ),
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName("getwordchannel")
+          .setDescription("Show the currently configured Word of the Day channel"),
+      )
+      .addSubcommand((sub) =>
+        sub
+          . setName("setfreegameschannel")
+          .setDescription("Set the channel for free games announcements")
+          .addChannelOption((option) =>
+            option
+              .setName("channel")
+              .setDescription("The text channel to use")
+              .setRequired(true)
+              .addChannelTypes(ChannelType.GuildText),
+          ),
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName("getfreegameschannel")
+          .setDescription("Show the currently configured free games channel"),
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName("setrankchannel")
+          .setDescription("Set the channel for XP level-up announcements")
+          .addChannelOption((option) =>
+            option
+              .setName("channel")
+              .setDescription("The text channel to use")
+              .setRequired(true)
+              .addChannelTypes(ChannelType.GuildText),
+          ),
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName("getrankchannel")
+          .setDescription("Show the currently configured rank announcement channel"),
       )
       .addSubcommand((sub) =>
         sub
@@ -172,31 +225,33 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   const group = interaction.options.getSubcommandGroup();
 
   if (group === "notify") {
-    if (subcommand === "setchannel") {
+    // ── Online channel ──
+    if (subcommand === "setonlinechannel") {
       const channel = interaction.options.getChannel("channel", true);
-      await setDefaultChannel(guildId, channel.id);
-      logger.info(`Notify channel set to #${channel.name} (${channel.id}) in guild ${guildId}`);
+      await setOnlineChannel(guildId, channel.id);
+      logger.info(`Online channel set to #${channel.name} (${channel.id}) in guild ${guildId}`);
       await interaction.reply({
         content: `✅ Online notifications will now be posted to <#${channel.id}>.`,
       });
       return;
     }
 
-    if (subcommand === "channel") {
+    if (subcommand === "getonlinechannel") {
       const config = await getGuildConfig(guildId);
-      if (config.defaultChannelId) {
+      if (config.onlineChannelId) {
         await interaction.reply({
-          content: `📢 Online notifications are set to <#${config.defaultChannelId}>.`,
+          content: `📢 Online notifications are set to <#${config.onlineChannelId}>.`,
         });
       } else {
         await interaction.reply({
-          content: "❌ No notification channel is configured yet. Use `/config notify setchannel #channel` to set one.",
+          content: "❌ No online notification channel is configured. Use `/config notify setonlinechannel #channel` to set one.",
         });
       }
       return;
     }
 
-    if (subcommand === "setwelcome") {
+    // ── Welcome channel ──
+    if (subcommand === "setwelcomechannel") {
       const channel = interaction.options.getChannel("channel", true);
       await setWelcomeChannel(guildId, channel.id);
       logger.info(`Welcome channel set to #${channel.name} (${channel.id}) in guild ${guildId}`);
@@ -206,27 +261,103 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       return;
     }
 
-    if (subcommand === "welcome") {
+    if (subcommand === "getwelcomechannel") {
       const config = await getGuildConfig(guildId);
-      const cid = config.welcomeChannelId || config.defaultChannelId;
+      const cid = config.welcomeChannelId || config.onlineChannelId;
       if (cid) {
         await interaction.reply({
-          content: `👋 Welcome messages are set to <#${cid}>${config.welcomeChannelId ? "" : " *(falling back to notification channel)*"}.`,
+          content: `👋 Welcome messages are set to <#${cid}>${config.welcomeChannelId ? "" : " *(falling back to online notification channel)*"}.`,
         });
       } else {
         await interaction.reply({
-          content: "❌ No welcome channel is configured yet. Use `/config notify setwelcome #channel` to set one.",
+          content: "❌ No welcome channel is configured. Use `/config notify setwelcomechannel #channel` to set one.",
         });
       }
       return;
     }
 
+    // ── Word channel ──
+    if (subcommand === "setwordchannel") {
+      const channel = interaction.options.getChannel("channel", true);
+      await setWordChannel(guildId, channel.id);
+      logger.info(`Word channel set to #${channel.name} (${channel.id}) in guild ${guildId}`);
+      await interaction.reply({
+        content: `✅ Word of the Day will now be posted to <#${channel.id}>.`,
+      });
+      return;
+    }
+
+    if (subcommand === "getwordchannel") {
+      const config = await getGuildConfig(guildId);
+      if (config.wordChannelId) {
+        await interaction.reply({
+          content: `📖 Word of the Day is set to <#${config.wordChannelId}>.`,
+        });
+      } else {
+        await interaction.reply({
+          content: "❌ No Word of the Day channel is configured. Use `/config notify setwordchannel #channel` to set one.",
+        });
+      }
+      return;
+    }
+
+    // ── Freegames channel ──
+    if (subcommand === "setfreegameschannel") {
+      const channel = interaction.options.getChannel("channel", true);
+      await setFreegamesChannel(guildId, channel.id);
+      logger.info(`Freegames channel set to #${channel.name} (${channel.id}) in guild ${guildId}`);
+      await interaction.reply({
+        content: `✅ Free games announcements will now be posted to <#${channel.id}>.`,
+      });
+      return;
+    }
+
+    if (subcommand === "getfreegameschannel") {
+      const config = await getGuildConfig(guildId);
+      if (config.freegamesChannelId) {
+        await interaction.reply({
+          content: `🎮 Free games announcements are set to <#${config.freegamesChannelId}>.`,
+        });
+      } else {
+        await interaction.reply({
+          content: "❌ No free games channel is configured. Use `/config notify setfreegameschannel #channel` to set one.",
+        });
+      }
+      return;
+    }
+
+    // ── Rank channel ──
+    if (subcommand === "setrankchannel") {
+      const channel = interaction.options.getChannel("channel", true);
+      await setRankChannel(guildId, channel.id);
+      logger.info(`Rank channel set to #${channel.name} (${channel.id}) in guild ${guildId}`);
+      await interaction.reply({
+        content: `✅ XP level-up announcements will now be posted to <#${channel.id}>.`,
+      });
+      return;
+    }
+
+    if (subcommand === "getrankchannel") {
+      const config = await getGuildConfig(guildId);
+      if (config.rankChannelId) {
+        await interaction.reply({
+          content: `🏆 Rank announcements are set to <#${config.rankChannelId}>.`,
+        });
+      } else {
+        await interaction.reply({
+          content: "❌ No rank channel is configured. Use `/config notify setrankchannel #channel` to set one.",
+        });
+      }
+      return;
+    }
+
+    // ── Test welcome ──
     if (subcommand === "testwelcome") {
       await interaction.deferReply({ ephemeral: true });
       const config = await getGuildConfig(guildId);
-      const cid = config.welcomeChannelId || config.defaultChannelId;
+      const cid = config.welcomeChannelId || config.onlineChannelId;
       if (!cid) {
-        await interaction.editReply({ content: "❌ No welcome channel configured. Set one first with `/config notify setwelcome #channel`." });
+        await interaction.editReply({ content: "❌ No welcome channel configured. Set one first with `/config notify setwelcomechannel #channel`." });
         return;
       }
 

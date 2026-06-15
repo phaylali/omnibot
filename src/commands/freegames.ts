@@ -5,26 +5,28 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  Message,
 } from "discord.js";
 
-interface Giveaway {
-  id: number;
+export interface Giveaway {
   title: string;
   worth: string;
-  thumbnail: string;
   image: string;
-  description: string;
-  instructions: string;
   open_giveaway_url: string;
   published_date: string;
   type: string;
   platforms: string;
   end_date: string;
-  users: number;
   status: string;
-  gamerpower_url: string;
-  open_giveaway: string;
 }
+
+interface PageState {
+  games: Giveaway[];
+  page: number;
+  userId: string;
+}
+
+const pages = new Map<string, PageState>();
 
 const PLATFORM_CHOICES = [
   { name: "All", value: "all" },
@@ -43,11 +45,9 @@ const TYPE_CHOICES = [
   { name: "Betas", value: "beta" },
 ] as const;
 
-const PAGE_SIZE = 5;
-
 export const data = new SlashCommandBuilder()
   .setName("freegames")
-  .setDescription("Check currently free games and giveaways across stores")
+  .setDescription("Browse currently free games and giveaways across stores")
   .addStringOption((option) =>
     option
       .setName("platform")
@@ -63,54 +63,71 @@ export const data = new SlashCommandBuilder()
       .addChoices(...TYPE_CHOICES),
   );
 
-function typeLabel(type: string): string {
-  if (type === "game") return "🎮 Free Game";
-  if (type === "loot") return "📦 In-Game Loot";
-  if (type === "beta") return "🧪 Beta Access";
-  return `🔗 ${type}`;
+function typeLabel(type: string): { emoji: string; label: string } {
+  if (type === "game") return { emoji: "🎮", label: "Free Game" };
+  if (type === "loot") return { emoji: "📦", label: "In-Game Loot" };
+  if (type === "beta") return { emoji: "🧪", label: "Beta Access" };
+  return { emoji: "🔗", label: type };
 }
 
-function buildPage(items: Giveaway[], page: number, totalPages: number) {
+function buildPage(game: Giveaway, index: number, total: number) {
+  const t = typeLabel(game.type);
+
   const embed = new EmbedBuilder()
     .setColor(0x00ae86)
-    .setTitle("🎮 Free Games & Giveaways")
-    .setDescription(
-      `Showing **${page * PAGE_SIZE + 1}–${Math.min((page + 1) * PAGE_SIZE, items.length)}** of **${items.length}** active — sorted by newest`,
-    )
-    .setFooter({ text: `Powered by GamerPower.com • Page ${page + 1}/${totalPages}` })
+    .setTitle(`${t.emoji} ${game.title}`)
+    .setURL(game.open_giveaway_url)
+    .setFooter({ text: `${index + 1} of ${total} · Powered by GamerPower.com` })
     .setTimestamp();
 
-  if (items[0]?.image) {
-    embed.setImage(items[0].image);
-  }
+  if (game.image) embed.setImage(game.image);
 
-  for (const g of items) {
-    const tag = typeLabel(g.type);
-    const platformInfo = g.platforms ? `\n📌 ${g.platforms}` : "";
-    const endDate = g.end_date
-      ? `\n⏳ Ends: <t:${Math.floor(new Date(g.end_date).getTime() / 1000)}:R>`
-      : "";
-    const worth = g.worth && g.worth !== "N/A" ? `\n💰 Worth: ${g.worth}` : "";
-    embed.addFields({
-      name: `${tag} — ${g.title}`,
-      value: `[Claim now](${g.open_giveaway_url})${platformInfo}${endDate}${worth}`,
-    });
+  const lines: string[] = [];
+  lines.push(`**Type:** ${t.label}`);
+  if (game.platforms) lines.push(`**Platforms:** ${game.platforms}`);
+  if (game.worth && game.worth !== "N/A") lines.push(`**Worth:** ${game.worth}`);
+  if (game.end_date) {
+    const ts = Math.floor(new Date(game.end_date).getTime() / 1000);
+    lines.push(`**Ends:** <t:${ts}:R>`);
   }
+  embed.setDescription(lines.join("\n"));
 
-  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+  const claim = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setLabel("🎁 Claim this giveaway")
+      .setStyle(ButtonStyle.Link)
+      .setURL(game.open_giveaway_url),
+  );
+
+  const nav = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId("freegames_prev")
       .setLabel("◀ Prev")
       .setStyle(ButtonStyle.Secondary)
-      .setDisabled(page === 0),
+      .setDisabled(index === 0),
     new ButtonBuilder()
       .setCustomId("freegames_next")
       .setLabel("Next ▶")
       .setStyle(ButtonStyle.Secondary)
-      .setDisabled(page === totalPages - 1),
+      .setDisabled(index === total - 1),
   );
 
-  return { embed, row };
+  return { embed, claim, nav };
+}
+
+export function handleFreeGamesNav(
+  customId: string,
+  message: Message,
+): { embeds: EmbedBuilder[]; components: ActionRowBuilder<ButtonBuilder>[] } | null {
+  const state = pages.get(message.id);
+  if (!state) return null;
+
+  if (customId === "freegames_prev") state.page--;
+  if (customId === "freegames_next") state.page++;
+
+  const game = state.games[state.page];
+  const { embed, claim, nav } = buildPage(game, state.page, state.games.length);
+  return { embeds: [embed], components: [claim, nav] };
 }
 
 export async function execute(interaction: ChatInputCommandInteraction) {
@@ -136,49 +153,26 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const giveaways = (await res.json()) as Giveaway[];
 
     if (!Array.isArray(giveaways) || giveaways.length === 0) {
-      await interaction.editReply({ content: "📭 No active giveaways found for that filter." });
+      await interaction.editReply({ content: "📭 No active giveaways found." });
       return;
     }
 
-    const filtered = giveaways.filter((g) => g.status === "Active");
-    if (filtered.length === 0) {
-      await interaction.editReply({ content: "📭 No active giveaways found for that filter." });
+    const active = giveaways.filter((g) => g.status === "Active");
+    if (active.length === 0) {
+      await interaction.editReply({ content: "📭 No active giveaways found." });
       return;
     }
 
-    const sorted = [...filtered].sort(
+    const sorted = [...active].sort(
       (a, b) => new Date(b.published_date).getTime() - new Date(a.published_date).getTime(),
     );
 
-    const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
-    let page = 0;
+    const { embed, claim, nav } = buildPage(sorted[0], 0, sorted.length);
+    const msg = await interaction.editReply({ embeds: [embed], components: [claim, nav] });
 
-    const { embed, row } = buildPage(sorted.slice(0, PAGE_SIZE), 0, totalPages);
+    pages.set(msg.id, { games: sorted, page: 0, userId: interaction.user.id });
 
-    if (sorted.length <= PAGE_SIZE) {
-      await interaction.editReply({ embeds: [embed] });
-      return;
-    }
-
-    const msg = await interaction.editReply({ embeds: [embed], components: [row] });
-
-    const collector = msg.createMessageComponentCollector({
-      filter: (i) =>
-        i.user.id === interaction.user.id &&
-        ["freegames_prev", "freegames_next"].includes(i.customId),
-      time: 120_000,
-    });
-
-    collector.on("collect", async (i) => {
-      page = i.customId === "freegames_prev" ? page - 1 : page + 1;
-      const start = page * PAGE_SIZE;
-      const { embed: e, row: r } = buildPage(sorted.slice(start, start + PAGE_SIZE), page, totalPages);
-      await i.update({ embeds: [e], components: [r] });
-    });
-
-    collector.on("end", async () => {
-      await interaction.editReply({ components: [] }).catch(() => {});
-    });
+    setTimeout(() => pages.delete(msg.id), 120_000);
   } catch (err) {
     await interaction.editReply({ content: "❌ Couldn't fetch giveaways right now." });
     console.error(`Freegames error: ${err}`);

@@ -4,6 +4,7 @@ import {
   EmbedBuilder,
 } from "discord.js";
 import { formatDate } from "../utils/helpers.ts";
+import { getXp, getLevelProgress } from "../lib/xpStore.ts";
 
 export const data = new SlashCommandBuilder()
   .setName("userinfo")
@@ -40,6 +41,14 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     )
     .setFooter({ text: `Requested by ${interaction.user.tag}` })
     .setTimestamp();
+
+  if (interaction.guildId) {
+    const xpData = await getXp(interaction.guildId, target.id);
+    if (xpData) {
+      const progress = getLevelProgress(xpData.xp);
+      embed.addFields({ name: "XP Level", value: `Level ${progress.level} (${xpData.xp.toLocaleString()} XP)`, inline: true });
+    }
+  }
 
   const banner = target.bannerURL({ size: 1024 });
   if (banner) embed.setImage(banner);

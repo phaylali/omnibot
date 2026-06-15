@@ -8,6 +8,7 @@ Originally made for the **Omniversify** server and Moroccan communities, but any
 
 - **Modular command system** — each command is a self-contained file in `src/commands/`
 - **Slash commands** — `/test`, `/challenge` (Rock Paper Scissors), `/userinfo`, `/flip`, `/help`, `/config`
+- **Social actions** — `/hug`, `/slap`, `/bonk`, `/pet` with reaction GIFs from nekos.best
 - **Coin flip** — `/flip` with live buttons, per-guild leaderboard, top-3 embed, 📊 full leaderboard
 - **Server config** — `/config notify setchannel`, `/config rss add|remove|list|interval`
 - **RSS monitoring** — watches RSS/Atom feeds and posts new items as embeds to a configured channel
@@ -53,6 +54,10 @@ bun run dev
 | `/config rss remove <url>` | Remove a monitored RSS feed |
 | `/config rss list` | List all monitored RSS feeds with check times |
 | `/config rss interval <minutes>` | Set how often RSS feeds are checked (default 60) |
+| `/hug <user>` | Hug someone — composites both avatars into one image |
+| `/slap <user>` | Slap someone |
+| `/bonk <user>` | Bonk someone |
+| `/pet <user>` | Pet someone |
 
 ## Scripts
 
@@ -61,6 +66,7 @@ bun run dev
 | `bun run start` | Start the bot |
 | `bun run dev` | Start with hot reload (`--watch`) |
 | `bun run deploy` | Register/update slash commands |
+
 
 ## Data Storage
 
@@ -102,7 +108,14 @@ src/
 │   ├── userinfo.ts           # /userinfo command
 │   ├── flip.ts               # /flip command
 │   ├── help.ts               # /help command
-│   └── config.ts             # /config command (notify + rss groups)
+│   ├── config.ts             # /config command (notify + rss groups)
+│   ├── hug.ts                # /hug command
+│   ├── slap.ts               # /slap command
+│   ├── bonk.ts               # /bonk command
+│   ├── pet.ts                # /pet command
+│   ├── dadjoke.ts            # /dadjoke command
+│   ├── freegames.ts          # /freegames command
+│   └── tifinagh.ts           # /tifinagh command
 │
 ├── events/
 │   └── interactionCreate.ts  # Router for all interactions
@@ -111,7 +124,8 @@ src/
 │   └── rps.ts                # RPS game engine + state management
 │
 ├── services/
-│   └── rssMonitor.ts         # Background RSS polling service
+│   ├── rssMonitor.ts         # Background RSS polling service
+│   └── wordMonitor.ts        # Word of the Day polling service
 │
 ├── lib/
 │   ├── commandLoader.ts      # Loads commands into the client
@@ -123,7 +137,8 @@ src/
 │
 └── utils/
     ├── helpers.ts            # Emoji, capitalize, random, date formatting
-    └── discordApi.ts         # Discord REST API wrapper (for deploy)
+    ├── discordApi.ts         # Discord REST API wrapper (for deploy)
+    └── social.ts             # Social reaction helper (compositing API + nekos.best)
 
 images/
 ├── front-coin.png            # Coin flip heads image

@@ -22,6 +22,13 @@ import * as help from "./help.ts";
 import * as tifinagh from "./tifinagh.ts";
 import * as dadjoke from "./dadjoke.ts";
 import * as freegames from "./freegames.ts";
+import * as hug from "./hug.ts";
+import * as slap from "./slap.ts";
+import * as bonk from "./bonk.ts";
+import * as pet from "./pet.ts";
+import * as quiz from "./quiz.ts";
+import * as xp from "./xp.ts";
+import * as leaderboard from "./leaderboard.ts";
 
 /** Ordered list of all commands. The loader uses this to register them. */
-export const commandList: Command[] = [test, challenge, userinfo, flip, config, help, tifinagh, dadjoke, freegames];
+export const commandList: Command[] = [test, challenge, userinfo, flip, config, help, tifinagh, dadjoke, freegames, hug, slap, bonk, pet, quiz, xp, leaderboard];

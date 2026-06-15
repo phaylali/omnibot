@@ -17,6 +17,8 @@ import { Events, Interaction, MessageFlags } from "discord.js";
 import type { Client } from "discord.js";
 import { rpsGame } from "../games/rps.ts";
 import { logger } from "../lib/logger.ts";
+import { handleFreeGamesNav } from "../commands/freegames.ts";
+import { handleQuizButton, handleQuizNext } from "../commands/quiz.ts";
 import { BOT_NAME } from "../config.ts";
 import { capitalize } from "../utils/helpers.ts";
 import { recordFlip, getTopN, getLeaderboard } from "../lib/flipStats.ts";
@@ -222,6 +224,29 @@ async function handleButton(interaction: import("discord.js").ButtonInteraction)
 
     rpsGame.endGame(channelId);
     await interaction.update({ content: "Challenge cancelled.", components: [] });
+    return;
+  }
+
+  // ── Freegames: Pagination ──
+  if (customId === "freegames_prev" || customId === "freegames_next") {
+    const result = handleFreeGamesNav(customId, interaction.message);
+    if (!result) {
+      await interaction.reply({ content: "This session expired. Run `/freegames` again.", flags: MessageFlags.Ephemeral });
+      return;
+    }
+    await interaction.update(result);
+    return;
+  }
+
+  // ── Quiz: Answer button ──
+  if (customId.startsWith("quiz_a_") || customId.startsWith("quiz_b_")) {
+    await handleQuizButton(interaction);
+    return;
+  }
+
+  // ── Quiz: Next question ──
+  if (customId === "quiz_next") {
+    await handleQuizNext(interaction);
     return;
   }
 
