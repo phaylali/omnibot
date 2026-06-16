@@ -13,6 +13,7 @@ import {
   setWordInterval,
   setFreegamesChannel,
   setRankChannel,
+  setRoleChannel,
   getGuildConfig,
   addRssFeed,
   removeRssFeed,
@@ -120,6 +121,23 @@ export const data = new SlashCommandBuilder()
         sub
           .setName("getrankchannel")
           .setDescription("Show the currently configured rank announcement channel"),
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName("setrolechannel")
+          .setDescription("Set the channel for role selection embeds")
+          .addChannelOption((option) =>
+            option
+              .setName("channel")
+              .setDescription("The text channel to use")
+              .setRequired(true)
+              .addChannelTypes(ChannelType.GuildText),
+          ),
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName("getrolechannel")
+          .setDescription("Show the currently configured role selection channel"),
       )
       .addSubcommand((sub) =>
         sub
@@ -346,6 +364,31 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       } else {
         await interaction.reply({
           content: "❌ No rank channel is configured. Use `/config notify setrankchannel #channel` to set one.",
+        });
+      }
+      return;
+    }
+
+    // ── Role channel ──
+    if (subcommand === "setrolechannel") {
+      const channel = interaction.options.getChannel("channel", true);
+      await setRoleChannel(guildId, channel.id);
+      logger.info(`Role channel set to #${channel.name} (${channel.id}) in guild ${guildId}`);
+      await interaction.reply({
+        content: `✅ Role selection embeds will now be posted to <#${channel.id}>.`,
+      });
+      return;
+    }
+
+    if (subcommand === "getrolechannel") {
+      const config = await getGuildConfig(guildId);
+      if (config.roleChannelId) {
+        await interaction.reply({
+          content: `🎭 Role selection channel is set to <#${config.roleChannelId}>.`,
+        });
+      } else {
+        await interaction.reply({
+          content: "❌ No role selection channel is configured. Use `/config notify setrolechannel #channel` to set one.",
         });
       }
       return;

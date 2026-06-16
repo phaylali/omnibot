@@ -13,6 +13,7 @@ export interface GuildConfig {
   wordChannelId: string | null;
   freegamesChannelId: string | null;
   rankChannelId: string | null;
+  roleChannelId: string | null;
   rssFeeds: RssFeedEntry[];
   rssIntervalMinutes: number;
   wordIntervalHours: number;
@@ -26,6 +27,7 @@ const DEFAULT_CONFIG: GuildConfig = {
   wordChannelId: null,
   freegamesChannelId: null,
   rankChannelId: null,
+  roleChannelId: null,
   rssFeeds: [],
   rssIntervalMinutes: 60,
   wordIntervalHours: 3,
@@ -46,6 +48,7 @@ export async function getGuildConfig(guildId: string): Promise<GuildConfig> {
   if ("wordChannelId" in raw) config.wordChannelId = raw.wordChannelId as string;
   if ("freegamesChannelId" in raw) config.freegamesChannelId = raw.freegamesChannelId as string;
   if ("rankChannelId" in raw) config.rankChannelId = raw.rankChannelId as string;
+  if ("roleChannelId" in raw) config.roleChannelId = raw.roleChannelId as string;
   if ("rssFeeds" in raw) config.rssFeeds = raw.rssFeeds as RssFeedEntry[];
   if ("rssIntervalMinutes" in raw) config.rssIntervalMinutes = raw.rssIntervalMinutes as number;
   if ("wordIntervalHours" in raw) config.wordIntervalHours = raw.wordIntervalHours as number;
@@ -162,6 +165,17 @@ export async function setFreegamesChannel(
 ): Promise<void> {
   const config = await getGuildConfig(guildId);
   config.freegamesChannelId = channelId;
+  await guildWrite(guildId, CONFIG_FILE, config);
+}
+
+// ───── Role Channel ─────
+
+export async function setRoleChannel(
+  guildId: string,
+  channelId: string | null,
+): Promise<void> {
+  const config = await getGuildConfig(guildId);
+  config.roleChannelId = channelId;
   await guildWrite(guildId, CONFIG_FILE, config);
 }
 

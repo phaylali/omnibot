@@ -19,6 +19,7 @@ import { rpsGame } from "../games/rps.ts";
 import { logger } from "../lib/logger.ts";
 import { handleFreeGamesNav } from "../commands/freegames.ts";
 import { handleQuizButton, handleQuizNext } from "../commands/quiz.ts";
+import { getRolesData, sanitizeKey } from "../lib/rolesStore.ts";
 import { BOT_NAME } from "../config.ts";
 import { capitalize } from "../utils/helpers.ts";
 import { recordFlip, getTopN, getLeaderboard } from "../lib/flipStats.ts";
@@ -247,6 +248,61 @@ async function handleButton(interaction: import("discord.js").ButtonInteraction)
   // ── Quiz: Next question ──
   if (customId === "quiz_next") {
     await handleQuizNext(interaction);
+    return;
+  }
+
+  // ── Role toggle ──
+  if (customId.startsWith("rt_")) {
+    const parts = customId.split("_");
+    const groupKey = parts[1];
+    const roleKey = parts.slice(2).join("_");
+    if (!groupKey || !roleKey) {
+      await interaction.reply({ content: "Invalid role button.", flags: MessageFlags.Ephemeral });
+      return;
+    }
+
+    if (!interaction.guild) {
+      await interaction.reply({ content: "This can only be used in a server.", flags: MessageFlags.Ephemeral });
+      return;
+    }
+
+    const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+    if (!member) {
+      await interaction.reply({ content: "Could not fetch your member data.", flags: MessageFlags.Ephemeral });
+      return;
+    }
+
+    const store = await getRolesData(interaction.guildId!);
+    const group = store.groups[groupKey];
+    if (!group) {
+      await interaction.reply({ content: "This role group no longer exists.", flags: MessageFlags.Ephemeral });
+      return;
+    }
+
+    const entry = group.roles.find((r) => sanitizeKey(r.name) === roleKey);
+    if (!entry || !entry.roleId) {
+      await interaction.reply({ content: "This role no longer exists.", flags: MessageFlags.Ephemeral });
+      return;
+    }
+
+    const discordRole = interaction.guild.roles.cache.get(entry.roleId);
+    if (!discordRole) {
+      await interaction.reply({ content: "The Discord role for this button was deleted.", flags: MessageFlags.Ephemeral });
+      return;
+    }
+
+    const hasRole = member.roles.cache.has(entry.roleId);
+    try {
+      if (hasRole) {
+        await member.roles.remove(discordRole);
+        await interaction.reply({ content: `Removed **${discordRole.name}** from you.`, flags: MessageFlags.Ephemeral });
+      } else {
+        await member.roles.add(discordRole);
+        await interaction.reply({ content: `Gave you **${discordRole.name}**!`, flags: MessageFlags.Ephemeral });
+      }
+    } catch {
+      await interaction.reply({ content: "Could not update your roles. The bot may lack permissions.", flags: MessageFlags.Ephemeral });
+    }
     return;
   }
 
