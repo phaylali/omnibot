@@ -7,11 +7,16 @@ Originally made for the **Omniversify** server and Moroccan communities, but any
 ## Features
 
 - **Modular command system** — each command is a self-contained file in `src/commands/`
-- **Slash commands** — `/test`, `/challenge` (Rock Paper Scissors), `/userinfo`, `/flip`, `/help`, `/config`
-- **Social actions** — `/hug`, `/slap`, `/bonk`, `/pet` with reaction GIFs from nekos.best
-- **Coin flip** — `/flip` with live buttons, per-guild leaderboard, top-3 embed, 📊 full leaderboard
-- **Server config** — `/config notify setchannel`, `/config rss add|remove|list|interval`
+- **20+ slash commands** — test, challenge (RPS), userinfo, flip, help, config, dadjoke, freegames, hug, slap, bonk, pet, tifinagh, quiz, xp, leaderboard, init-roles, show-roles
+- **Tifinagh dictionary** — /tifinagh translate/transliterate/random, powered by a standalone Hono API
+- **Tifinagh quiz** — /quiz tifinagh with 33 Neo-Tifinagh IRCAM letters, 4-choice buttons, per-guild leaderboard
+- **XP + leveling** — message-based XP (15-25 per message, 30s cooldown), 20 levels with titles, level-up announcements, progress bar
+- **Reaction roles** — /init-roles creates roles, category, per-role channels with locked permissions, selection embed with toggle buttons
+- **Coin flip** — /flip with live buttons, per-guild leaderboard, top-3 embed, crypto randomness
+- **Social actions** — /hug, /slap, /bonk, /pet with reaction GIFs from nekos.best
 - **RSS monitoring** — watches RSS/Atom feeds and posts new items as embeds to a configured channel
+- **Word of the Day** — posts random Tifinagh words to a configured channel on a schedule
+- **Welcome/leave events** — green embed on join, sassy red embed on leave (both humans and bots)
 - **Interactive components** — buttons, select menus
 - **Per-guild data** — all configs stored in `data/<guildId>/`, global data in `data/global/`
 - **TypeScript** — full type safety across the entire codebase
@@ -21,6 +26,7 @@ Originally made for the **Omniversify** server and Moroccan communities, but any
 
 - [Bun](https://bun.sh) >= 1.0 (`curl -fsSL https://bun.sh/install | bash`)
 - A [Discord application](https://discord.com/developers/applications) with bot enabled
+- Privileged intents enabled in Discord Developer Portal: **Guild Members**, **Message Content**
 
 ## Quick Start
 
@@ -45,19 +51,58 @@ bun run dev
 |---------|-------------|
 | `/test` | Sanity check — replies with "hello world" + random emoji |
 | `/help` | Show all available commands |
-| `/userinfo [user]` | Show Discord account info (join date, account age, etc.) |
+| `/userinfo [user]` | Show Discord account info + XP level |
 | `/challenge [object]` | Start a Rock-Paper-Scissors game with buttons + select menus |
-| `/flip [heads|tails]` | Coin flip guessing game with per-guild leaderboard |
-| `/config notify setchannel <#channel>` | Set the notification channel for bot status |
-| `/config notify channel` | Show the currently configured notification channel |
-| `/config rss add <url> [channel]` | Add an RSS/Atom feed to monitor for new posts |
-| `/config rss remove <url>` | Remove a monitored RSS feed |
-| `/config rss list` | List all monitored RSS feeds with check times |
-| `/config rss interval <minutes>` | Set how often RSS feeds are checked (default 60) |
-| `/hug <user>` | Hug someone — composites both avatars into one image |
+| `/flip [heads\|tails]` | Coin flip guessing game with per-guild leaderboard |
+| `/dadjoke` | Fetch a random dad joke from icanhazdadjoke.com |
+| `/freegames` | Browse free game giveaways from GamerPower, paginated with claim links |
+| `/hug <user>` | Hug someone with a reaction GIF |
 | `/slap <user>` | Slap someone |
 | `/bonk <user>` | Bonk someone |
 | `/pet <user>` | Pet someone |
+| `/tifinagh translate <from> <text>` | Translate text between Latin/Arabic/Tifinagh scripts |
+| `/tifinagh random` | Get a random Tifinagh word with translations |
+| `/quiz tifinagh` | Tifinagh letter quiz (4-choice buttons, leaderboard, next question) |
+| `/quiz tifinagh-2` | Reverse Tifinagh quiz (letter → name) |
+| `/xp [user]` | Show XP, level, and progress bar |
+| `/leaderboard` | Top 10 XP leaderboard with medals |
+| `/init-roles <group> <roles>` | Create a role group with toggle buttons and per-role channels |
+| `/show-roles [group]` | Re-post role selection embeds |
+
+### `/config` — Server Configuration
+
+**Notify group:**
+| Subcommand | Description |
+|------------|-------------|
+| `setonlinechannel <#channel>` | Set the channel for online/bot-status notifications |
+| `getonlinechannel` | Show the current online notification channel |
+| `setwelcomechannel <#channel>` | Set the channel for welcome/leave messages |
+| `getwelcomechannel` | Show the current welcome channel |
+| `setwordchannel <#channel>` | Set the channel for Word of the Day |
+| `getwordchannel` | Show the current Word of the Day channel |
+| `setfreegameschannel <#channel>` | Set the channel for free game announcements |
+| `getfreegameschannel` | Show the current free games channel |
+| `setrankchannel <#channel>` | Set the channel for level-up announcements |
+| `getrankchannel` | Show the current rank channel |
+| `setrolechannel <#channel>` | Set the channel where role selection embeds are posted |
+| `getrolechannel` | Show the current role channel |
+| `testwelcome` | Preview the welcome embed |
+
+**Word group:**
+| Subcommand | Description |
+|------------|-------------|
+| `channel [channel]` | Set/show the Word of the Day channel |
+| `interval <hours>` | Set how often a word is posted (default 24) |
+| `now` | Post a word immediately |
+| `status` | Show current word channel and interval |
+
+**RSS group:**
+| Subcommand | Description |
+|------------|-------------|
+| `add <url> [channel]` | Add an RSS/Atom feed to monitor |
+| `remove <url>` | Remove a monitored RSS feed |
+| `list` | List all monitored feeds with check times |
+| `interval <minutes>` | Set check interval (default 60) |
 
 ## Scripts
 
@@ -67,7 +112,6 @@ bun run dev
 | `bun run dev` | Start with hot reload (`--watch`) |
 | `bun run deploy` | Register/update slash commands |
 
-
 ## Data Storage
 
 All per-guild data is stored as JSON files in `data/<guildId>/`. Each guild gets its own directory:
@@ -75,12 +119,14 @@ All per-guild data is stored as JSON files in `data/<guildId>/`. Each guild gets
 ```
 data/
 ├── <guildId>/
-│   └── config.json    — Notification channel, RSS feeds, interval
-├── <guildId>/
-│   ├── config.json
-│   └── flipStats.json — Win/loss records for /flip
+│   ├── config.json       — Channel configs, RSS feeds, intervals
+│   ├── flipStats.json    — Win/loss records for /flip
+│   ├── quizStats.json    — Tifinagh quiz leaderboard
+│   ├── xpData.json       — XP and levels per user
+│   └── roles.json        — Reaction role group definitions
 └── global/
-    └── ...             — Cross-guild shared data (tracked in git)
+    ├── tifinagh-letters.json  — 33 Neo-Tifinagh IRCAM letter mappings
+    └── ...                    — Other cross-guild data (tracked in git)
 ```
 
 Per-guild directories are gitignored. Global data is tracked.
@@ -96,7 +142,7 @@ Per-guild directories are gitignored. Global data is tracked.
 
 ```
 src/
-├── index.ts                  # Entry point — boots the client
+├── index.ts                  # Entry point — boots the client + all services
 ├── config.ts                 # Centralized env vars & constants
 ├── types.ts                  # Shared TypeScript interfaces
 ├── deploy.ts                 # Command registration script
@@ -104,21 +150,28 @@ src/
 ├── commands/
 │   ├── _index.ts             # Command registry (add new commands here)
 │   ├── test.ts               # /test command
-│   ├── challenge.ts          # /challenge command
+│   ├── challenge.ts          # /challenge (RPS) command
 │   ├── userinfo.ts           # /userinfo command
-│   ├── flip.ts               # /flip command
+│   ├── flip.ts               # /flip coin flip command
 │   ├── help.ts               # /help command
-│   ├── config.ts             # /config command (notify + rss groups)
+│   ├── config.ts             # /config command (notify + word + rss groups)
 │   ├── hug.ts                # /hug command
 │   ├── slap.ts               # /slap command
 │   ├── bonk.ts               # /bonk command
 │   ├── pet.ts                # /pet command
 │   ├── dadjoke.ts            # /dadjoke command
 │   ├── freegames.ts          # /freegames command
-│   └── tifinagh.ts           # /tifinagh command
+│   ├── tifinagh.ts           # /tifinagh translate/random command
+│   ├── quiz.ts               # /quiz tifinagh command
+│   ├── xp.ts                 # /xp command
+│   ├── leaderboard.ts        # /leaderboard command
+│   ├── init-roles.ts         # /init-roles reaction roles command
+│   └── show-roles.ts         # /show-roles command
 │
 ├── events/
-│   └── interactionCreate.ts  # Router for all interactions
+│   ├── interactionCreate.ts  # Router for all interactions (slash, buttons, select)
+│   ├── guildMemberEvents.ts  # Welcome/leave handlers
+│   └── messageCreate.ts      # XP tracking on messages
 │
 ├── games/
 │   └── rps.ts                # RPS game engine + state management
@@ -131,14 +184,17 @@ src/
 │   ├── commandLoader.ts      # Loads commands into the client
 │   ├── logger.ts             # Structured logging
 │   ├── store.ts              # Generic guild/global JSON read/write
-│   ├── configStore.ts        # Per-guild config (channel, RSS feeds)
+│   ├── configStore.ts        # Per-guild config (channels, RSS, word interval)
 │   ├── flipStats.ts          # Per-guild flip leaderboard
+│   ├── quizStats.ts          # Per-guild quiz leaderboard
+│   ├── xpStore.ts            # XP data and level calculations
+│   ├── rolesStore.ts         # Reaction role group data
 │   └── rssParser.ts          # RSS/Atom XML parser
 │
 └── utils/
     ├── helpers.ts            # Emoji, capitalize, random, date formatting
     ├── discordApi.ts         # Discord REST API wrapper (for deploy)
-    └── social.ts             # Social reaction helper (compositing API + nekos.best)
+    └── social.ts             # Social reaction helper (nekos.best API)
 
 images/
 ├── front-coin.png            # Coin flip heads image
