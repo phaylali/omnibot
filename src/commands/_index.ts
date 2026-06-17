@@ -32,6 +32,15 @@ import * as leaderboard from "./leaderboard.ts";
 import * as initRoles from "./init-roles.ts";
 import * as showRoles from "./show-roles.ts";
 import * as relay from "./relay.ts";
+import * as clearChannel from "./clear-channel.ts";
+import * as dog from "./dog.ts";
+import * as cat from "./cat.ts";
+import * as bored from "./bored.ts";
+import * as facepalm from "./facepalm.ts";
+import * as pat from "./pat.ts";
+import * as animequote from "./animequote.ts";
+import * as holidays from "./holidays.ts";
+import * as date from "./date.ts";
 
 /** Ordered list of all commands. The loader uses this to register them. */
-export const commandList: Command[] = [test, challenge, userinfo, flip, config, help, tifinagh, dadjoke, freegames, hug, slap, bonk, pet, quiz, xp, leaderboard, initRoles, showRoles, relay];
+export const commandList: Command[] = [test, challenge, userinfo, flip, config, help, tifinagh, dadjoke, freegames, hug, slap, bonk, pet, quiz, xp, leaderboard, initRoles, showRoles, relay, clearChannel, dog, cat, bored, facepalm, pat, animequote, holidays, date];

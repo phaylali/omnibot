@@ -12,6 +12,7 @@ export interface GuildConfig {
   welcomeChannelId: string | null;
   wordChannelId: string | null;
   freegamesChannelId: string | null;
+  freegamesIntervalHours: number;
   rankChannelId: string | null;
   roleChannelId: string | null;
   rssFeeds: RssFeedEntry[];
@@ -26,6 +27,7 @@ const DEFAULT_CONFIG: GuildConfig = {
   welcomeChannelId: null,
   wordChannelId: null,
   freegamesChannelId: null,
+  freegamesIntervalHours: 3,
   rankChannelId: null,
   roleChannelId: null,
   rssFeeds: [],
@@ -53,6 +55,7 @@ export async function getGuildConfig(guildId: string): Promise<GuildConfig> {
   if ("rssIntervalMinutes" in raw) config.rssIntervalMinutes = raw.rssIntervalMinutes as number;
   if ("wordIntervalHours" in raw) config.wordIntervalHours = raw.wordIntervalHours as number;
   if ("lastWordTimestamp" in raw) config.lastWordTimestamp = raw.lastWordTimestamp as number | null;
+  if ("freegamesIntervalHours" in raw) config.freegamesIntervalHours = raw.freegamesIntervalHours as number;
 
   return config;
 }
@@ -264,6 +267,23 @@ export async function getAllGuildsWithFeeds(): Promise<GuildWithFeeds[]> {
         feeds: config.rssFeeds,
         intervalMinutes: config.rssIntervalMinutes,
       });
+    }
+  }
+
+  return result;
+}
+
+export async function getAllConfiguredFreeGamesGuilds(): Promise<
+  { guildId: string; channelId: string; intervalHours: number }[]
+> {
+  const guildIds = await listGuilds();
+  const result: { guildId: string; channelId: string; intervalHours: number }[] = [];
+
+  for (const guildId of guildIds) {
+    const config = await getGuildConfig(guildId);
+    const chId = config.freegamesChannelId || config.onlineChannelId;
+    if (chId) {
+      result.push({ guildId, channelId: chId, intervalHours: config.freegamesIntervalHours });
     }
   }
 

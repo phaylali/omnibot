@@ -9,6 +9,8 @@ import {
 import { logger } from "../lib/logger.ts";
 import { getCopiedIds, markCopied } from "../lib/relayStore.ts";
 
+const MAX_FILES = 10;
+
 export const data = new SlashCommandBuilder()
   .setName("relay")
   .setDescription("Copy all messages from one channel to another (one-time, deduplicated)")
@@ -89,6 +91,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
   await interaction.editReply({ content: `📨 Copying ${total} new messages to ${target}...` });
 
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
   for (const msg of toCopy) {
     const embed = new EmbedBuilder()
       .setAuthor({
@@ -100,21 +104,24 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       .setFooter({ text: `From #${source.name}` })
       .setColor(msg.member?.displayColor ?? 0x2b2d31);
 
-    if (msg.attachments.size > 0) {
-      const links = msg.attachments.map((a) => `[${a.name}](${a.url})`).join("\n");
-      embed.addFields({ name: "Attachments", value: truncate(links, 1024) });
+    const attachArr = [...msg.attachments.values()];
+    const files = attachArr.slice(0, MAX_FILES).map((a) => a.url);
+
+    const extra = attachArr.length > MAX_FILES;
+    if (extra) {
+      const links = attachArr.slice(MAX_FILES).map((a) => `[${a.name}](${a.url})`).join("\n");
+      embed.addFields({ name: "More attachments", value: truncate(links, 1024) });
     }
 
     try {
-      await target.send({ embeds: [embed] });
+      await target.send({ embeds: [embed], files });
     } catch {
-      // skip messages that can't be sent
+      // skip messages that fail to send
     }
 
     await markCopied(guildId, source.id, msg.id);
     copied++;
 
-    // Update progress every 10 messages
     if (copied - lastProgressUpdate >= 10 || copied === total) {
       lastProgressUpdate = copied;
       const pct = Math.round((copied / total) * 100);
@@ -127,6 +134,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         }
       }
     }
+
+    await sleep(800);
   }
 
   logger.info(`/relay copied ${copied}/${total} messages from #${source.name} to #${target.name} in guild ${guildId}`);

@@ -28,6 +28,7 @@ import { registerInteractionHandler } from "./events/interactionCreate.ts";
 import { getAllConfiguredOnlineGuilds } from "./lib/configStore.ts";
 import { RssMonitor } from "./services/rssMonitor.ts";
 import { WordMonitor } from "./services/wordMonitor.ts";
+import { FreeGamesMonitor } from "./services/freeGamesMonitor.ts";
 import { registerGuildMemberEvents } from "./events/guildMemberEvents.ts";
 import { registerXpEvents } from "./events/messageCreate.ts";
 import { logger } from "./lib/logger.ts";
@@ -81,6 +82,10 @@ client.once(Events.ClientReady, async (readyClient) => {
   // ── Start Word of the Day monitor ──
   const wordMonitor = new WordMonitor(readyClient);
   wordMonitor.start();
+
+  // ── Start Free Games monitor ──
+  const freeGamesMonitor = new FreeGamesMonitor(readyClient);
+  freeGamesMonitor.start();
 
   // ── Send online notification to configured guilds ──
   // Each guild can set a default channel via /config setchannel.
