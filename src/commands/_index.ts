@@ -31,6 +31,7 @@ import * as xp from "./xp.ts";
 import * as leaderboard from "./leaderboard.ts";
 import * as initRoles from "./init-roles.ts";
 import * as showRoles from "./show-roles.ts";
+import * as relay from "./relay.ts";
 
 /** Ordered list of all commands. The loader uses this to register them. */
-export const commandList: Command[] = [test, challenge, userinfo, flip, config, help, tifinagh, dadjoke, freegames, hug, slap, bonk, pet, quiz, xp, leaderboard, initRoles, showRoles];
+export const commandList: Command[] = [test, challenge, userinfo, flip, config, help, tifinagh, dadjoke, freegames, hug, slap, bonk, pet, quiz, xp, leaderboard, initRoles, showRoles, relay];
